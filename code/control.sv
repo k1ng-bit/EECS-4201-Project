@@ -57,11 +57,140 @@ assign immsel_o = !(opcode_i == `R_TYPE);
 
 logic is_jump;
 assign is_jump = (opcode_i == `J_TYPE) || (opcode_i == `I_TYPE_JALR);
-/* LH4??? */
+assign pcsel_o = is_jump;
+	assign regwren_o = (opcode_i == `R_TYPE)      ||
+                   (opcode_i == `I_TYPE)      ||
+                   (opcode_i == `I_TYPE_L)    ||
+                   (opcode_i == `I_TYPE_JALR) ||
+                   (opcode_i == `J_TYPE)      ||
+                   (opcode_i == `U_TYPE_LUI)  ||
+                   (opcode_i == `U_TYPE_AUIPC);
+
+assign rs1sel_o = (opcode_i == `R_TYPE)      ||
+                  (opcode_i == `I_TYPE)      ||
+                  (opcode_i == `I_TYPE_L)    ||
+                  (opcode_i == `I_TYPE_JALR) ||
+                  (opcode_i == `S_TYPE)      ||
+                  (opcode_i == `B_TYPE);
+
+assign rs2sel_o = (opcode_i == `R_TYPE) ||
+                  (opcode_i == `S_TYPE) ||
+                  (opcode_i == `B_TYPE);
 
   always_comb begin
     case (opcode_i)
-      /* LH4??? */
+     `R_TYPE: begin
+    wbsel_o = `WB_ALU;
+
+    case (funct3_i)
+        `F3_ADD: begin
+            if (funct7_i == `F7_SUB)
+                alusel_o = `ALU_SUB;
+            else
+                alusel_o = `ALU_ADD;
+        end
+
+        `F3_XOR:
+            alusel_o = `ALU_XOR;
+
+        `F3_OR:
+            alusel_o = `ALU_OR;
+
+        `F3_AND:
+            alusel_o = `ALU_AND;
+
+        `F3_SLEFT:
+            alusel_o = `ALU_SLL;
+
+        `F3_SRIGHT: begin
+            if (funct7_i == `F7_SRA)
+                alusel_o = `ALU_SRA;
+            else
+                alusel_o = `ALU_SRL;
+        end
+
+        `F3_SLT:
+            alusel_o = `ALU_SLT;
+
+        `F3_SLTU:
+            alusel_o = `ALU_SLTU;
+
+        default:
+            alusel_o = `ALU_NOP;
+    endcase
+end
+
+`I_TYPE: begin
+    wbsel_o = `WB_ALU;
+
+    case (funct3_i)
+        `F3_ADD:
+            alusel_o = `ALU_ADD;
+
+        `F3_XOR:
+            alusel_o = `ALU_XOR;
+
+        `F3_OR:
+            alusel_o = `ALU_OR;
+
+        `F3_AND:
+            alusel_o = `ALU_AND;
+
+        `F3_SLEFT:
+            alusel_o = `ALU_SLL;
+
+        `F3_SRIGHT: begin
+            if (funct7_i == `F7_SRA)
+                alusel_o = `ALU_SRA;
+            else
+                alusel_o = `ALU_SRL;
+        end
+
+        `F3_SLT:
+            alusel_o = `ALU_SLT;
+
+        `F3_SLTU:
+            alusel_o = `ALU_SLTU;
+
+        default:
+            alusel_o = `ALU_NOP;
+    endcase
+end
+
+`I_TYPE_L: begin
+    wbsel_o = `WB_MEM;
+    alusel_o = `ALU_ADD;
+end
+
+`I_TYPE_JALR: begin
+    wbsel_o = `WB_PC4;
+    alusel_o = `ALU_ADD;
+end
+
+`S_TYPE: begin
+    wbsel_o = `WB_ALU;
+    alusel_o = `ALU_ADD;
+end
+
+`B_TYPE: begin
+    wbsel_o = `WB_ALU;
+    alusel_o = `ALU_ADD;
+end
+
+`J_TYPE: begin
+    wbsel_o = `WB_PC4;
+    alusel_o = `ALU_ADD;
+end
+
+`U_TYPE_LUI: begin
+    wbsel_o = `WB_IMM;
+    alusel_o = `ALU_NOP;
+end
+
+`U_TYPE_AUIPC: begin
+    wbsel_o = `WB_ALU;
+    alusel_o = `ALU_ADD;
+end
       default: begin
         wbsel_o = `WB_ALU;
         alusel_o = `ALU_NOP;
