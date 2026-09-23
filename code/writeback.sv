@@ -30,8 +30,11 @@
                            wbsel control signal
     */
     always_comb begin
-        // Muxing the source of writeback data.
-        writeback_data_o = /* LH7??? */
+        // Muxing the source of writeback data.         
+        writeback_data_o = (wbsel_i == `WB_ALU) ? alu_res_i :           /* LH7 complete */
+                           (wbsel_i == `WB_MEM) ? memory_data_i :     
+                           (wbsel_i == `WB_PC4) ? pc_i + 32'd4  :
+                           imm_i;                                       // if wbsel_i == `WB_IMM
     end
 
 endmodule : writeback

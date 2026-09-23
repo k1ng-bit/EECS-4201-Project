@@ -150,9 +150,12 @@ module rv_core #(
     // Logic hole 5 (LH5): Complete the logic to determine the inputs to the ALU
     //                     alu_A, mux_B, alu_B
 
-    assign alu_A = /* LH5??? */
-    assign mux_B = /* LH5??? */
-    assign alu_B = /* LH5??? */
+    assign alu_A = r_rs1data; /* LH5 complete: alu_A takes in the content of register 1*/
+    assign mux_B = r_rs2data; /* LH5 complete: input of mux is content of register 2 */
+    assign alu_B = ((d_opcode == `I_TYPE) ||       /* LH5 complete: alu_B takes in content of register 2 or d_imm if load or store type op */
+                    (d_opcode == `I_TYPE_L) ||
+                    (d_opcode == `I_TYPE_JALR) ||
+                    (d_opcode == `S_TYPE)) ? d_imm : mux_B;
 
     // Logic hole 6 (LH6): Please see execute.sv for details on LH6
     // Execute instantiation

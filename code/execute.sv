@@ -55,15 +55,18 @@ module alu #(
         if (opcode_i == `B_TYPE) begin
             case (funct3_i)
                 /* LH6: Complete the branch control logic to determine brtaken_o */
-                `F3_BEQ: brtaken_o = /* LH6??? */;
-                `F3_BNE: brtaken_o = /* LH6??? */;
-                `F3_BLT: brtaken_o = /* LH6??? */;
-                `F3_BLTU: brtaken_o = /* LH6??? */;
-                `F3_BGE: brtaken_o = /* LH6??? */
-                `F3_BGEU: brtaken_o = /* LH6??? */
+                `F3_BEQ: brtaken_o =  breq;   /* LH6 complete */
+                `F3_BNE: brtaken_o =  !breq;  /* LH6 complete */
+                `F3_BLT: brtaken_o =  brlt;   /* LH6 complete */
+                `F3_BLTU: brtaken_o = brlt;   /* LH6 complete */
+                `F3_BGE: brtaken_o =  !brlt;  /* LH6 complete */
+                `F3_BGEU: brtaken_o = !brlt;  /* LH6 complete */
+                default: brtaken_o = 1'b0;
             endcase
         end
-        /* LH6??? */
+        else begin
+            brtaken_o = 1'b0; /* LH6 complete*/
+        end
     end
 
     /*
@@ -72,17 +75,20 @@ module alu #(
     always_comb begin
         case (alusel_i)
             // For branch, jal, and jalr instructions calculate new PC
-            `ALU_ADD: res_o = /* LH6??? */
-            `ALU_SUB: res_o = /* LH6??? */
-            `ALU_AND: res_o = /* LH6??? */
-            `ALU_OR:  res_o = /* LH6??? */
-            `ALU_XOR: res_o = /* LH6??? */
-            `ALU_SLL: res_o = /* LH6??? */
-            `ALU_SRL: res_o = /* LH6??? */
-            `ALU_SRA: res_o = /* LH6??? */
-            `ALU_SLT:  res_o = /* LH6??? */
-            `ALU_SLTU: res_o = /* LH6??? */
-            default: /* LH6??? */
+            `ALU_ADD: res_o = ((opcode_i == `B_TYPE) ||
+                              (opcode_i == `J_TYPE) ||
+                              (opcode_i == `U_TYPE_AUIPC)) ? (pc_i + imm_i) : (opcode_i == `I_TYPE_JALR)
+           ?((rs1_i + imm_i) & 32'hFFFFFFFE) : (rs1_i + rs2_i); /* LH6 complete */
+            `ALU_SUB: res_o = rs1_i - rs2_i;                    /* LH6 complete */
+            `ALU_AND: res_o = rs1_i & rs2_i;                    /* LH6 complete */
+            `ALU_OR:  res_o = rs1_i | rs2_i;                    /* LH6 complete */
+            `ALU_XOR: res_o = rs1_i ^ rs2_i;                    /* LH6 complete */
+            `ALU_SLL: res_o = rs1_i << rs2_i[4:0];              /* LH6 complete */
+            `ALU_SRL: res_o = rs1_i >> rs2_i[4:0];              /* LH6 complete */
+            `ALU_SRA: res_o = $signed(rs1_i) >>> rs2_i[4:0];    /* LH6 complete */
+            `ALU_SLT:  res_o = ($signed(rs1_i) < $signed(rs2_i)) ? 32'd1 : 32'd0; /* LH6 complete */
+            `ALU_SLTU: res_o = (rs1_i < rs2_i) ? 32'd1 : 32'd0;  /* LH6 complete */
+            default:   res_o = 32'd0;                               /* LH6 completed */
         endcase
     end
 endmodule : alu
