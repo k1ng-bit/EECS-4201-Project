@@ -29,6 +29,10 @@ module rv_core #(
     logic pc_en;
     logic stall, flush;
 
+    // LH1: jump_branch is asserted on a jump (JAL/JALR) or a taken branch
+    logic jump_branch;
+    assign jump_branch = c_pcsel || e_brtaken;
+
     // stall and flush logic instantiation
     // For stage 1, you do not need to modify this
     stall_flush_logic stall_flush (
@@ -49,7 +53,7 @@ module rv_core #(
         .rst(reset),
         .next_pc_i(f_pc),
         .pc_en_i(1'b1),
-        .jump_branch_i(/*LH1???*/),
+        .jump_branch_i(jump_branch),
         .pc_o(pc),
         .insn_o()
     );
