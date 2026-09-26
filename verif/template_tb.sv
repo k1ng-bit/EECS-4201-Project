@@ -61,29 +61,80 @@ module template_tb;
         .brtaken_o()
     );
 
-    int number_of_tests = 10;
-    int test_counter = 0; 
+    // int number_of_tests = 10;
+    // int test_counter = 0; 
     
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            alusel <= '0;
-            rs1 <= '0;
-            rs2 <= '0;
-            test_counter <= 0;
-        end
-        else if (test_counter < number_of_tests) begin
-            alusel <= 4'($urandom_range(9, 0));
-            rs1 <= $urandom();
-            rs2 <= $urandom();
-            test_counter <= test_counter + 1;
-        end
-        else begin
-            $display("=========================================");
-            $display("Completed %0d Tests. Simulation Complete!", number_of_tests);
-            $display("=========================================");
-            $finish;
-        end
-    end
+    // always_ff @(posedge clk) begin
+    //     if (rst) begin
+    //         alusel <= '0;
+    //         rs1 <= '0;
+    //         rs2 <= '0;
+    //         test_counter <= 0;
+    //     end
+    //     else if (test_counter < number_of_tests) begin
+    //         alusel <= 4'($urandom_range(9, 0));
+    //         rs1 <= $urandom();
+    //         rs2 <= $urandom();
+    //         test_counter <= test_counter + 1;
+    //     end
+    //     else begin
+    //         $display("=========================================");
+    //         $display("Completed %0d Tests. Simulation Complete!", number_of_tests);
+    //         $display("=========================================");
+    //         $finish;
+    //     end
+    // end
+
+    initial begin
+    // Start with known input values.
+    rs1 = 32'd0;
+    rs2 = 32'd0;
+    alusel = `ALU_ADD;
+
+    // Wait for the template's reset period to finish.
+    wait (rst == 1'b0);
+
+    // TEST 1: Addition: 5 + 7 = 12
+    @(negedge clk);
+    rs1 = 32'd5;
+    rs2 = 32'd7;
+    alusel = `ALU_ADD;
+
+    @(posedge clk);
+    if (result !== 32'd12)
+        $fatal(1, "ADD failed: expected 12, got %h", result);
+    else
+        $display("PASS: ADD 5 + 7 = 12");
+
+    // TEST 2: Subtraction: 9 - 4 = 5
+    @(negedge clk);
+    rs1 = 32'd9;
+    rs2 = 32'd4;
+    alusel = `ALU_SUB;
+
+    @(posedge clk);
+    if (result !== 32'd5)
+        $fatal(1, "SUB failed: expected 5, got %h", result);
+    else
+        $display("PASS: SUB 9 - 4 = 5");
+
+    // TEST 3: 32-bit addition wraps around.
+    // FFFFFFFF + 1 produces 00000000 in a 32-bit result.
+    @(negedge clk);
+    rs1 = 32'hFFFFFFFF;
+    rs2 = 32'd1;
+    alusel = `ALU_ADD;
+
+    @(posedge clk);
+    if (result !== 32'd0)
+        $fatal(1, "ADD wraparound failed: expected 0, got %h",
+               result);
+    else
+        $display("PASS: ADD wraparound");
+
+    $display("All 3 ALU checks passed.");
+    $finish;
+end
 
     /* 
      * This block is to stop infinite loops, if you you see "SIMULATION TIMEOUT" it means either:
