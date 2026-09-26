@@ -15,8 +15,7 @@ module rv_core #(
   parameter int DWIDTH = 32
 )(
   input logic clk,
-  input logic reset,
-  output logic busy
+  input logic reset
 );
 
     // ---------- FETCH STAGE ----------- //
@@ -32,6 +31,7 @@ module rv_core #(
     // LH1: jump_branch is asserted on a jump (JAL/JALR) or a taken branch
     logic jump_branch;
     assign jump_branch = c_pcsel || e_brtaken;
+    assign f_pc = jump_branch ? e_res : pc;
 
     // stall and flush logic instantiation
     // For stage 1, you do not need to modify this
@@ -240,6 +240,7 @@ module rv_core #(
     );
 
     // This is to get yosys to synthesize the design
+    (* keep *) logic busy;
     assign busy = (c_regwren || c_memren || c_memwren);
 
 endmodule : rv_core

@@ -59,6 +59,10 @@ module main_memory #(
         string mem_path;
         if ($value$plusargs("MEM_PATH=%s", mem_path))
             $readmemh(mem_path, temp_memory);
+`ifdef MEM_PATH
+        else if (`MEM_PATH != "")
+            $readmemh(`MEM_PATH, temp_memory);
+`endif
         else
             $fatal(1, "MEM_PATH not provided");
         for (int i = 0; i < MEM_WORDS; i++) begin
