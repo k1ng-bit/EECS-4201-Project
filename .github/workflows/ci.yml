@@ -96,7 +96,7 @@ jobs:
 
           echo "Lint check passed — no Verilator warnings."
       
-            # Check the verification tests.
+        # Check the verification tests.
       - name: Check Member 3 assertion syntax
         run: |
           verilator --lint-only --assert -Wno-fatal \
