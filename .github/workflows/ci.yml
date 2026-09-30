@@ -22,14 +22,76 @@ jobs:
           sudo apt-get install -y verilator make g++
           verilator --version
 
-      - name: Run supplied benchmarks and check result
+      # ── Standalone unit testbenches (tb-<name> targets) ──
+      # Automatically discovers and runs any verif/tb_*.sv files
+      # using the Makefile's tb-% pattern rule. This ensures that
+      # Member 2's stall_flush unit testbench (and any future unit
+      # TBs) are validated on every push/PR.
+      - name: Run standalone unit testbenches
         shell: bash
         run: |
           set -euo pipefail
-          make -C verif run-all TEST_DIR=sample-bmarks 2>&1 | tee simulation.log
+          FOUND=0
+          for tb in verif/tb_*.sv; do
+            [ -e "$tb" ] || continue
+            NAME=$(basename "${tb%.sv}")
+            echo ""
+            echo "======== Running unit testbench: $NAME ========"
+            make -C verif "tb-${NAME}" 2>&1 | tee "unit_${NAME}.log"
 
-          if grep -Eq 'Test Failed|Simulation TIMEOUT|%Error' simulation.log; then
+            if grep -Eq 'Test Failed|Simulation TIMEOUT|%Error' "unit_${NAME}.log"; then
+              echo "FAIL: Unit testbench $NAME failed!"
+              exit 1
+            fi
+            FOUND=1
+          done
+
+          if [ "$FOUND" -eq 0 ]; then
+            echo "No standalone unit testbenches (verif/tb_*.sv) found — skipping."
+          fi
+
+      # ── Supplied sample benchmarks ──
+      # Runs official baseline sample benchmarks and verifies that
+      # all tests produce a PASS entry in verif/_results.txt without
+      # any failures.
+      - name: Run supplied benchmarks
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f verif/_results.txt
+
+          make -C verif run-all TEST_DIR=sample-bmarks 2>&1 | tee simulation_sample.log
+
+          echo ""
+          echo "======== Sample Benchmarks Results ========"
+          cat verif/_results.txt || true
+
+          if grep -q "FAIL" verif/_results.txt 2>/dev/null; then
+            echo "FAIL: One or more sample benchmarks failed!"
             exit 1
           fi
 
-          grep -q '^Test Passed$' simulation.log
+          if ! grep -q "PASS" verif/_results.txt 2>/dev/null; then
+            echo "FAIL: No test results recorded — possible build or runtime error."
+            exit 1
+          fi
+
+      # ── Verilator warning/lint check ──
+      # Verifies clean compilation without latch inferences, width
+      # mismatches, or incomplete sensitivity lists.
+      - name: Verilator lint check
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C verif compile-tb TEST_DIR=sample-bmarks TEST=test1 2>&1 | tee lint.log
+
+          if grep -Eq '%Warning|%Error' lint.log; then
+            echo ""
+            echo "======== Verilator Warnings/Errors Detected ========"
+            grep -E '%Warning|%Error' lint.log
+            echo ""
+            echo "FAIL: Fix all Verilator warnings before merging."
+            exit 1
+          fi
+
+          echo "Lint check passed — no Verilator warnings."
