@@ -1,0 +1,39 @@
+name: RISC-V Verification
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Install simulation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y verilator make g++
+          verilator --version
+
+      - name: Compile processor and testbench
+        run: |
+          make -C verif compile-tb WARN=1 TEST_DIR=sample-bmarks TEST=test1
+
+      - name: Run supplied benchmark and check result
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C verif run TEST_DIR=sample-bmarks TEST=test1 2>&1 | tee simulation.log
+
+          if grep -Eq 'Test Failed|Simulation TIMEOUT|%Error' simulation.log; then
+            exit 1
+          fi
+
+          grep -q '^Test Passed$' simulation.log
