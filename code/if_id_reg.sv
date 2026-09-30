@@ -43,7 +43,10 @@ module if_id_reg #(
 
     // Latch program counter and instruction with async reset
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            pc_o   <= '0;
+            insn_o <= `NOP;
+        end else if (flush_i) begin
             pc_o   <= '0;
             insn_o <= `NOP;
         end else if (!stall_i) begin

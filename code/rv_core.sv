@@ -32,12 +32,20 @@ module rv_core #(
     logic flush_id_ex;      // Flush ID/EX to bubble
     logic flush_ex_mem;     // Flush EX/MEM to bubble
 
+    // Testbench backward-compatibility probes for top_tb / rv_official_tb
+    logic              stall;
+    logic              flush;
+    assign stall = stall_if_id;
+    assign flush = flush_if_id || flush_id_ex;
+
     // ================================================================
     //  IF STAGE — Instruction Fetch
     // ================================================================
     // IF stage signals
     logic [AWIDTH-1:0] if_pc;       // Current program counter
     logic [DWIDTH-1:0] if_insn;     // Fetched instruction from memory
+    logic [DWIDTH-1:0] f_insn;      // Instruction alias for testbench probe
+    assign f_insn = if_insn;
 
     // Branch/jump resolution feedback from EX stage
     logic              ex_jump_branch;  // Branch taken or jump in EX
@@ -363,7 +371,7 @@ module rv_core #(
     writeback #(
         .DWIDTH(DWIDTH),
         .AWIDTH(AWIDTH)
-    ) wb1 (
+    ) wb_wb1 (
         .pc_i(wb_pc),
         .alu_res_i(wb_alu_res),
         .memory_data_i(wb_mem_data),

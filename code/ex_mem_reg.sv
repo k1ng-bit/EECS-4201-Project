@@ -61,7 +61,10 @@ module ex_mem_reg #(
 
     // Latch ALU result and store data
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            alu_res_o  <= '0;
+            rs2_data_o <= '0;
+        end else if (flush_i) begin
             alu_res_o  <= '0;
             rs2_data_o <= '0;
         end else begin
@@ -72,7 +75,10 @@ module ex_mem_reg #(
 
     // Latch program counter and immediate value
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            pc_o  <= '0;
+            imm_o <= '0;
+        end else if (flush_i) begin
             pc_o  <= '0;
             imm_o <= '0;
         end else begin
@@ -83,7 +89,10 @@ module ex_mem_reg #(
 
     // Latch destination register and funct3
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            rd_o     <= '0;
+            funct3_o <= '0;
+        end else if (flush_i) begin
             rd_o     <= '0;
             funct3_o <= '0;
         end else begin
@@ -94,7 +103,11 @@ module ex_mem_reg #(
 
     // Latch memory control signals
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            regwren_o <= '0;
+            memren_o  <= '0;
+            memwren_o <= '0;
+        end else if (flush_i) begin
             regwren_o <= '0;
             memren_o  <= '0;
             memwren_o <= '0;
@@ -107,7 +120,8 @@ module ex_mem_reg #(
 
     // Latch writeback source select
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) wbsel_o <= '0;
+        if (rst)            wbsel_o <= '0;
+        else if (flush_i)   wbsel_o <= '0;
         else                wbsel_o <= wbsel_i;
     end
 

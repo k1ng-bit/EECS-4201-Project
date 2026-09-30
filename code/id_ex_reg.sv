@@ -73,7 +73,10 @@ module id_ex_reg #(
 
     // Latch program counter and immediate value
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            pc_o  <= '0;
+            imm_o <= '0;
+        end else if (flush_i) begin
             pc_o  <= '0;
             imm_o <= '0;
         end else begin
@@ -84,7 +87,10 @@ module id_ex_reg #(
 
     // Latch register file read data
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            rs1_data_o <= '0;
+            rs2_data_o <= '0;
+        end else if (flush_i) begin
             rs1_data_o <= '0;
             rs2_data_o <= '0;
         end else begin
@@ -95,7 +101,11 @@ module id_ex_reg #(
 
     // Latch register addresses for hazard detection
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            rd_o  <= '0;
+            rs1_o <= '0;
+            rs2_o <= '0;
+        end else if (flush_i) begin
             rd_o  <= '0;
             rs1_o <= '0;
             rs2_o <= '0;
@@ -108,7 +118,11 @@ module id_ex_reg #(
 
     // Latch instruction decode fields
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            funct3_o <= '0;
+            funct7_o <= '0;
+            opcode_o <= '0;
+        end else if (flush_i) begin
             funct3_o <= '0;
             funct7_o <= '0;
             opcode_o <= '0;
@@ -121,7 +135,11 @@ module id_ex_reg #(
 
     // Latch control signals: PC select and register/memory enables
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            pcsel_o   <= '0;
+            regwren_o <= '0;
+            memren_o  <= '0;
+        end else if (flush_i) begin
             pcsel_o   <= '0;
             regwren_o <= '0;
             memren_o  <= '0;
@@ -134,7 +152,11 @@ module id_ex_reg #(
 
     // Latch control signals: memory write, writeback select, ALU select
     always_ff @(posedge clk or posedge rst) begin
-        if (rst || flush_i) begin
+        if (rst) begin
+            memwren_o <= '0;
+            wbsel_o   <= '0;
+            alusel_o  <= `ALU_NOP;
+        end else if (flush_i) begin
             memwren_o <= '0;
             wbsel_o   <= '0;
             alusel_o  <= `ALU_NOP;
