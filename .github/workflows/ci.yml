@@ -22,15 +22,11 @@ jobs:
           sudo apt-get install -y verilator make g++
           verilator --version
 
-      - name: Compile processor and testbench
-        run: |
-          make -C verif compile-tb WARN=1 TEST_DIR=sample-bmarks TEST=test1
-
-      - name: Run supplied benchmark and check result
+      - name: Run supplied benchmarks and check result
         shell: bash
         run: |
           set -euo pipefail
-          make -C verif run TEST_DIR=sample-bmarks TEST=test1 2>&1 | tee simulation.log
+          make -C verif run-all TEST_DIR=sample-bmarks 2>&1 | tee simulation.log
 
           if grep -Eq 'Test Failed|Simulation TIMEOUT|%Error' simulation.log; then
             exit 1
