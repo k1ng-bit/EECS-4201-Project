@@ -96,12 +96,12 @@ jobs:
 
           echo "Lint check passed — no Verilator warnings."
       
-      # check the verification tests.
-    - name: Check Member 3 assertion syntax
+            # Check the verification tests.
+      - name: Check Member 3 assertion syntax
         run: |
           verilator --lint-only --assert -Wno-fatal \
             --top-module member3_pipeline_checks \
             verif/member3/member3_pipeline_checks.sv
 
-    - name: Run Member 3 functional tests
+      - name: Run Member 3 functional tests
         run: python3 verif/member3/run_tests.py run
