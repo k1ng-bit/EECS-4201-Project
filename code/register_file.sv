@@ -40,7 +40,6 @@ module register_file #(
     logic [DWIDTH-1:0] x [31:0];
 
     // Sequential write with asynchronous reset
-    // TODO: Consider write-first forwarding for same-cycle read/write
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             for (int i = 0; i < 32; i++) x[i] <= '0;
@@ -50,8 +49,12 @@ module register_file #(
         end
     end
 
-    // Combinational read ports
-    assign rs1data_o = x[rs1_i];
-    assign rs2data_o = x[rs2_i];
+    // Write first reads, ID sees a matching WB value before ID/EX captures it.
+    // Writes to x0 never bypass, reads of x0 always return zero.
+    logic wb_write_valid;
+    assign wb_write_valid = !rst && regwren_i && (rd_i != 5'd0);
+
+    assign rs1data_o = (rs1_i == 5'd0) ? '0 : ((wb_write_valid && (rd_i == rs1_i)) ? datawb_i : x[rs1_i]);
+    assign rs2data_o = (rs2_i == 5'd0) ? '0 : ((wb_write_valid && (rd_i == rs2_i)) ? datawb_i : x[rs2_i]);
 
 endmodule : register_file
