@@ -1,7 +1,7 @@
 # Stage 2: 5-Stage In-Order Pipelined RV-Core Plan
-## Decoupled Zero-Wait Architecture & 3-Member Work Breakdown
+## Decoupled Zero-Wait Architecture & Work Breakdown
 
-This document defines the architecture, frozen interface contracts, and fully decoupled work breakdown for Stage 2. It is engineered so that **all 3 team members can work simultaneously from Day 1 without blocking or waiting on each other**, targeting **100/100 (Sophisticated)** on the marking rubric.
+This document defines the architecture, frozen interface contracts, and fully decoupled work breakdown for Stage 2. It is engineered so that **zain, prabhpreet, and daksh can work simultaneously from Day 1 without blocking or waiting on each other**, targeting **100/100 (Sophisticated)** on the marking rubric.
 
 ---
 
@@ -22,7 +22,7 @@ The goal is to convert the single-cycle core into a 5-stage in-order pipelined R
 
 ## 2. Frozen Interface Contract (Day 1 Agreement)
 
-To ensure zero dependencies between team members, the signal interfaces are locked as follows:
+To ensure zero dependencies between teammates, the signal interfaces are locked as follows:
 
 ### A. `stall_flush_logic.sv` Port Contract
 ```systemverilog
@@ -69,7 +69,7 @@ All pipeline registers must adhere to:
                  Day 1: Interface Contract Frozen
         ┌───────────────────────┼───────────────────────┐
         ▼                       ▼                       ▼
-  [ Member 1 ]            [ Member 2 ]            [ Member 3 ]
+     [ zain ]             [ prabhpreet ]            [ daksh ]
 Branch: feat/pipeline-regs Branch: feat/hazard-logic Branch: feat/verification-ci
 - Build 4 pipeline regs  - Implement pure         - Build GitHub Actions CI
 - Connect rv_core.sv      stall_flush_logic.sv     Verilator workflow
@@ -80,13 +80,13 @@ Branch: feat/pipeline-regs Branch: feat/hazard-logic Branch: feat/verification-c
         └───────────────────────┬───────────────────────┘
                                 ▼
                    Integration & Merge Day
-        Plug Member 2 logic into Member 1 core;
-        Validate against Member 3 test suite and CI.
+        Plug prabhpreet logic into zain core;
+        Validate against daksh test suite and CI.
 ```
 
 ---
 
-### Member 1: Datapath Integration & Pipeline Registers
+### zain: Datapath Integration & Pipeline Registers
 * **Git Branch**: `feat/pipeline-registers`
 * **Independent Workflow (No Waiting)**:
   1. Create the 4 pipeline register modules:
@@ -96,14 +96,14 @@ Branch: feat/pipeline-regs Branch: feat/hazard-logic Branch: feat/verification-c
      - `mem_wb_reg.sv` (holds `alu_res`, `mem_rdata`, `rd`, `imm`, `pc`, `wbsel`, `regwren`)
   2. Instantiate these registers in [rv_core.sv](file:///c:/Users/Zain/Documents/code/courses/4201/code/rv_core.sv).
   3. **Stub out hazard logic**: Wire `stall_flush_logic` inputs to dummy/ground and outputs to `stall = 0`, `flush = 0`, `pc_en = 1`.
-  4. **Self-Verification**: Member 1 can immediately verify their core using benchmark assembly programs where independent instructions or explicit `nop`s prevent hazards. The datapath pipeline is validated before hazard logic is even merged!
+  4. **Self-Verification**: zain can immediately verify their core using benchmark assembly programs where independent instructions or explicit `nop`s prevent hazards. The datapath pipeline is validated before hazard logic is even merged!
 * **Rubric Focus**:
   - **Datapath design (8%)**: Every pipeline register uses **asynchronous reset logic** (`if (rst) ...`).
   - **Process definitions (5%)**: Strictly `always_ff`, lines per process <= 10.
 
 ---
 
-### Member 2: Hazard Detection & Stall/Flush Logic
+### prabhpreet: Hazard Detection & Stall/Flush Logic
 * **Git Branch**: `feat/stall-flush-logic`
 * **Independent Workflow (No Waiting)**:
   1. Implement [stall_flush_logic.sv](file:///c:/Users/Zain/Documents/code/courses/4201/code/stall_flush_logic.sv) based strictly on the port contract above.
@@ -114,7 +114,7 @@ Branch: feat/pipeline-regs Branch: feat/hazard-logic Branch: feat/verification-c
   3. **Control Hazard Logic**:
      - If `ex_brtaken_i || ex_is_jump_i`, assert `if_id_flush_o = 1` and `id_ex_flush_o = 1`.
   4. **Dedicated Standalone Testbench (`verif/tb_stall_flush.sv`)**:
-     - Member 2 creates a standalone unit testbench that does not need `rv_core.sv`.
+     - prabhpreet creates a standalone unit testbench that does not need `rv_core.sv`.
      - Directly tests all combinations of inputs:
        - Case 1: Trivial instruction flow (no stalls, no flushes)
        - Case 2: Load-use hazard detection
@@ -123,14 +123,14 @@ Branch: feat/pipeline-regs Branch: feat/hazard-logic Branch: feat/verification-c
        - Case 5: Branch not taken (no flush)
        - Case 6: False hazard on register `x0` (`x0` as destination)
        - Case 7: Simultaneous branch resolution and load hazard
-  5. Member 2 achieves **100% verified, bug-free logic** in isolation.
+  5. prabhpreet achieves **100% verified, bug-free logic** in isolation.
 * **Rubric Focus**:
   - **Latch inferences (8%)**: Ensure all `case` and `if-else` have default assignments; zero latch inferences.
   - **Programming constructs (4%)**: Single-line `assign` and concise `always_comb` behavioral blocks.
 
 ---
 
-### Member 3: Verification Suite, CI/CD & SV Extensions
+### daksh: Verification Suite, CI/CD & SV Extensions
 * **Git Branch**: `feat/verification-ci`
 * **Independent Workflow (No Waiting)**:
   1. **Continuous Integration (CI)**:
@@ -169,8 +169,8 @@ Branch: feat/pipeline-regs Branch: feat/hazard-logic Branch: feat/verification-c
 | **Step 1** | Automated CI Workflow | `feat/verification-ci` | `main` | ✅ **DONE** | PR #1 merged (`4c17250`). Verilator lint check, standalone unit TB runner, and `_results.txt` verification active. |
 | **Step 2** | Pipeline Registers & Core Integration | `feat/pipeline-registers` | `test-main` | ✅ **DONE** | Integrated and merged into `test-main`. Signal aliases (`stall`, `flush`, `f_insn`) added and `wb_wb1` restored for `top_tb` compatibility. Sync `flush_i` decoupled from async `rst`. Verified clean compile with 0 errors/0 warnings. |
 | **Step 3** | Hazard Detection & Stall/Flush Logic | `feat/stall-flush-logic` | `test-main` | 🟡 **READY FOR PR** | Logic and `tb_stall_flush.sv` unit testbench committed (`6e1bcb0`). Target PR to `test-main`. CI will automatically run unit testbench. |
-| **Step 4** | Datapath & Hazard Core Wiring | Integration on `test-main` | `test-main` | ⏳ **PENDING** | Connect Member 2's `stall_flush_logic` outputs to pipeline register enables/flushes in `rv_core.sv`. |
-| **Step 5** | Regression & Pipeline Assembly Tests | `feat/verification-tests` | `test-main` | 🟡 **TESTS READY** | Member 3 created 5 targeted assembly tests (`branch_delay`, `jalr_flush`, `load_use`, `raw_distance`, `x0_hazard`) and assertion checkers (`member3_pipeline_checks.sv`). Validate full core once Step 4 is integrated. |
+| **Step 4** | Datapath & Hazard Core Wiring | Integration on `test-main` | `test-main` | ⏳ **PENDING** | Connect prabhpreet's `stall_flush_logic` outputs to pipeline register enables/flushes in `rv_core.sv`. |
+| **Step 5** | Regression & Pipeline Assembly Tests | `feat/verification-tests` | `test-main` | 🟡 **TESTS READY** | daksh created 5 targeted assembly tests (`branch_delay`, `jalr_flush`, `load_use`, `raw_distance`, `x0_hazard`) and assertion checkers (`daksh_pipeline_checks.sv`). Validate full core once Step 4 is integrated. |
 
 ---
 
@@ -204,6 +204,6 @@ Branch: feat/pipeline-regs Branch: feat/hazard-logic Branch: feat/verification-c
 1. **Direct Continuity from Stage 2**: In Stage 2, all data hazards are resolved by stalling (wasting cycles). Stage 3 forwarding naturally replaces those stall cycles with bypass paths from `EX/MEM` and `MEM/WB` into the ALU inputs in `EX`.
 2. **Measurable Metric**: You can directly benchmark the speedup (IPC improvement) between your Stage 2 stall-only core and your Stage 3 forwarded core across standard benchmark programs.
 3. **Work Division in Stage 3**:
-   - Member A: ALU-to-ALU and MEM-to-ALU forwarding multiplexers and control logic.
-   - Member B: Store buffer implementation (queuing store operations to prevent memory stalls).
-   - Member C: Performance instrumentation (cycle counters, stall counters, and IPC comparison testbench).
+   - zain: ALU-to-ALU and MEM-to-ALU forwarding multiplexers and control logic.
+   - prabhpreet: Store buffer implementation (queuing store operations to prevent memory stalls).
+   - daksh: Performance instrumentation (cycle counters, stall counters, and IPC comparison testbench).

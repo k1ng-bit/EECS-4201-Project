@@ -25,7 +25,7 @@ jobs:
       # ── Standalone unit testbenches (tb-<name> targets) ──
       # Automatically discovers and runs any verif/tb_*.sv files
       # using the Makefile's tb-% pattern rule. This ensures that
-      # Member 2's stall_flush unit testbench (and any future unit
+      # prabhpreet's stall_flush unit testbench (and any future unit
       # TBs) are validated on every push/PR.
       - name: Run standalone unit testbenches
         shell: bash
@@ -97,11 +97,11 @@ jobs:
           echo "Lint check passed — no Verilator warnings."
       
         # Check the verification tests.
-      - name: Check Member 3 assertion syntax
+      - name: Check daksh assertion syntax
         run: |
           verilator --lint-only --assert -Wno-fatal \
-            --top-module member3_pipeline_checks \
-            verif/member3/member3_pipeline_checks.sv
+            --top-module daksh_pipeline_checks \
+            verif/daksh/daksh_pipeline_checks.sv
 
-      - name: Run Member 3 functional tests
-        run: python3 verif/member3/run_tests.py run
+      - name: Run daksh functional tests
+        run: python3 verif/daksh/run_tests.py run

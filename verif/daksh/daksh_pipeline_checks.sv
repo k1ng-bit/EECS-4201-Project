@@ -1,5 +1,5 @@
 // Verification-only checker. Connect to actual pipeline state at integration.
-module member3_pipeline_checks (
+module daksh_pipeline_checks (
     input logic clk,
     input logic reset,
     input logic pc_stall,       // Effective PC hold, after redirect priority.

@@ -3,7 +3,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-HERE = ROOT / 'verif/member3'
+HERE = ROOT / 'verif/daksh'
 TESTS = ROOT / 'verif/tests/pipeline_tests'
 OUT = HERE / 'build'
 NAMES = ['load_use', 'raw_distance', 'branch_delay', 'jalr_flush', 'x0_hazard']
@@ -49,15 +49,15 @@ def run_tests():
     obj = OUT / 'obj_dir'
     command(['verilator', '--binary', '--timing', '--assert', '-Wno-fatal',
              '--timescale', '1ns/1ps', '-I' + str(ROOT / 'code'),
-             '-DMEM_DEPTH=1048576', '--top-module', 'tb_member3',
-             '--Mdir', obj, '-j', '2', HERE / 'tb_member3.sv',
+             '-DMEM_DEPTH=1048576', '--top-module', 'tb_daksh',
+             '--Mdir', obj, '-j', '2', HERE / 'tb_daksh.sv',
              *sorted((ROOT / 'code').glob('*.sv'))], OUT / 'compile.log')
 
     for name in NAMES:
-        output = command([obj / 'Vtb_member3', '+TEST=' + name,
+        output = command([obj / 'Vtb_daksh', '+TEST=' + name,
                           '+MEM_PATH=' + str(TESTS / (name + '.x'))],
                          OUT / (name + '.log'))
-        if f'MEMBER3_PASS {name}' not in output:
+        if f'daksh_pass {name}' not in output:
             raise RuntimeError(f'{name}: no PASS marker; inspect its log')
         print('PASS', name)
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
         elif sys.argv[1:] == ['run']:
             run_tests()
         else:
-            raise RuntimeError('Usage: python3 verif/member3/run_tests.py build|run')
+            raise RuntimeError('Usage: python3 verif/daksh/run_tests.py build|run')
     except (OSError, subprocess.SubprocessError, RuntimeError) as error:
         print('FAIL:', error)
         sys.exit(1)
