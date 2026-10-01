@@ -155,13 +155,22 @@ Branch: feat/pipeline-regs Branch: feat/hazard-logic Branch: feat/verification-c
 
 ---
 
-## 4. Integration & Merge Protocol
+## 4. Integration & Merge Protocol & Live Progress Tracker
 
-1. **Step 1**: Member 3's CI pipeline is merged to `main` first.
-2. **Step 2**: Member 1 opens PR with pipeline registers and basic core (`feat/pipeline-registers`). CI validates that syntax and basic compilation pass.
-3. **Step 3**: Member 2 opens PR with `stall_flush_logic.sv` and its comprehensive unit testbench (`feat/stall-flush-logic`). CI runs Member 2's unit testbench to guarantee 100% hazard coverage.
-4. **Step 4**: Integrate Member 2's `stall_flush_logic` into Member 1's `rv_core.sv`.
-5. **Step 5**: Run Member 3's pipeline assembly suite. Any failing hazard scenario immediately points to the exact pipeline register enable/flush connection.
+> ### ⚠️ CRITICAL MERGE RULE: TARGET `test-main` ONLY
+> **DO NOT MERGE DIRECTLY INTO `main`!**
+> A staging branch named **`test-main`** has been created from `main`. All feature branches and pull requests (Step 2, Step 3, Step 4, Step 5) **must strictly target `test-main`**. 
+> The production `main` branch will only be updated once the full 5-stage pipelined core is completely assembled, verified, and passing all regression suites on `test-main`.
+
+### Step-by-Step Status
+
+| Step | Focus | Branch | Target Branch | Status | Details / Actions |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Step 1** | Automated CI Workflow | `feat/verification-ci` | `main` | ✅ **DONE** | PR #1 merged (`4c17250`). Verilator lint check, standalone unit TB runner, and `_results.txt` verification active. |
+| **Step 2** | Pipeline Registers & Core Integration | `feat/pipeline-registers` | `test-main` | 🔄 **IN PROGRESS (STAGED)** | Merged into `test-main`. Signal aliases (`stall`, `flush`, `f_insn`) added and `wb_wb1` restored for `top_tb` compatibility. Sync `flush_i` decoupled from async `rst`. Compiles cleanly with 0 errors/0 warnings. |
+| **Step 3** | Hazard Detection & Stall/Flush Logic | `feat/stall-flush-logic` | `test-main` | 🟡 **READY FOR PR** | Logic and `tb_stall_flush.sv` unit testbench committed (`6e1bcb0`). Target PR to `test-main`. CI will automatically run unit testbench. |
+| **Step 4** | Datapath & Hazard Core Wiring | Integration on `test-main` | `test-main` | ⏳ **PENDING** | Connect Member 2's `stall_flush_logic` outputs to pipeline register enables/flushes in `rv_core.sv`. |
+| **Step 5** | Regression & Pipeline Assembly Tests | `feat/verification-tests` | `test-main` | 🟡 **TESTS READY** | Member 3 created 5 targeted assembly tests (`branch_delay`, `jalr_flush`, `load_use`, `raw_distance`, `x0_hazard`) and assertion checkers (`member3_pipeline_checks.sv`). Validate full core once Step 4 is integrated. |
 
 ---
 
