@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-module tb_member3;
+module tb_daksh;
     logic clk = 0;
     logic reset = 1;
     int cycles = 0;
@@ -71,7 +71,7 @@ module tb_member3;
             default: $fatal(1, "Unknown test name");
         endcase
 
-        $display("MEMBER3_PASS %s cycles=%0d", test_name, cycles);
+        $display("daksh_pass %s cycles=%0d", test_name, cycles);
         $finish;
     end
 endmodule
