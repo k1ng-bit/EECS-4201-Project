@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-module tb_daksh;
+module tb_paradoxtests;
     logic clk = 0;
     logic reset = 1;
     int cycles = 0;
@@ -71,7 +71,7 @@ module tb_daksh;
             default: $fatal(1, "Unknown test name");
         endcase
 
-        $display("daksh_pass %s cycles=%0d", test_name, cycles);
+        $display("paradoxtests_pass %s cycles=%0d", test_name, cycles);
         $finish;
     end
 endmodule

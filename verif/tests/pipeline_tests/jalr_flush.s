@@ -1,4 +1,4 @@
-.include "daksh_common.inc"
+.include "paradoxtests_common.inc"
 .section .text.init
 .globl _start
 

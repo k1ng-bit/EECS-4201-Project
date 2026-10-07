@@ -1,3 +1,5 @@
 
-# daksh generated build output and simulation logs
-/verif/daksh/build/
+# paradoxtests generated build output and simulation logs
+/verif/paradoxtests/build/
+extend_stage2.md
+progress_stage2.md

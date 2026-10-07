@@ -5,7 +5,7 @@ plugin -i slang
 # first setup the include paths
 verilog_defaults -add -Icode/
 
-read_slang -Icode \
+read_slang -DSYNTHESIS -Icode \
     code/branch_control.sv \
     code/decode.sv \
     code/execute.sv \
@@ -18,6 +18,10 @@ read_slang -Icode \
     code/register_file.sv \
     code/stall_flush_logic.sv \
     code/writeback.sv \
+    code/id_ex_reg.sv \
+    code/if_id_reg.sv \
+    code/mem_wb_reg.sv \
+    code/ex_mem_reg.sv \
     code/rv_core.sv 
 
     echo on
@@ -32,8 +36,9 @@ read_slang -Icode \
     techmap; opt 
     flatten; opt
     dfflibmap -liberty synthesis/sky130nm.lib
-    abc -liberty synthesis/sky130nm.lib
+    abc -liberty synthesis/sky130nm.lib -D 10000 -script "+strash;dch;map -B 0.9;topo;stime -c;buffer -c;upsize -c;dnsize -c;stime -p"
     setundef -zero
     write_verilog synth.v
     write_json synth.json
-    stat
+    stat -liberty synthesis/sky130nm.lib
+    exec -expect-return 0 -- sta -exit synthesis/timing.tcl
