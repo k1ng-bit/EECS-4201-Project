@@ -3,26 +3,26 @@
 plugin -i slang
 
 # first setup the include paths
-verilog_defaults -add -Idesign-ctrl-alt-elite/code/
+verilog_defaults -add -Icode/
 
-read_slang -Idesign-ctrl-alt-elite/code \
-    design-ctrl-alt-elite/code/branch_control.sv \
-    design-ctrl-alt-elite/code/decode.sv \
-    design-ctrl-alt-elite/code/execute.sv \
-    design-ctrl-alt-elite/code/fetch.sv \
-    design-ctrl-alt-elite/code/igen.sv \
-    design-ctrl-alt-elite/code/main_memory.sv \
-    design-ctrl-alt-elite/code/memory.sv \
-    design-ctrl-alt-elite/code/memory_controller.sv \
-    design-ctrl-alt-elite/code/control.sv \
-    design-ctrl-alt-elite/code/register_file.sv \
-    design-ctrl-alt-elite/code/stall_flush_logic.sv \
-    design-ctrl-alt-elite/code/writeback.sv \
-    design-ctrl-alt-elite/code/id_ex_reg.sv \
-    design-ctrl-alt-elite/code/if_id_reg.sv \
-    design-ctrl-alt-elite/code/mem_wb_reg.sv \
-    design-ctrl-alt-elite/code/ex_mem_reg.sv \
-    design-ctrl-alt-elite/code/rv_core.sv 
+read_slang -DSYNTHESIS -Icode \
+    code/branch_control.sv \
+    code/decode.sv \
+    code/execute.sv \
+    code/fetch.sv \
+    code/igen.sv \
+    code/main_memory.sv \
+    code/memory.sv \
+    code/memory_controller.sv \
+    code/control.sv \
+    code/register_file.sv \
+    code/stall_flush_logic.sv \
+    code/writeback.sv \
+    code/id_ex_reg.sv \
+    code/if_id_reg.sv \
+    code/mem_wb_reg.sv \
+    code/ex_mem_reg.sv \
+    code/rv_core.sv 
 
     echo on
     hierarchy -check -top rv_core
