@@ -100,8 +100,8 @@ jobs:
       - name: Check daksh assertion syntax
         run: |
           verilator --lint-only --assert -Wno-fatal \
-            --top-module daksh_pipeline_checks \
-            verif/daksh/daksh_pipeline_checks.sv
+            --top-module paradoxtests_pipeline_checks \
+            verif/paradoxtests/paradoxtests_pipeline_checks.sv
 
       - name: Run daksh functional tests
-        run: python3 verif/daksh/run_tests.py run
+        run: python3 verif/paradoxtests/run_tests.py run

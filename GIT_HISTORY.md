@@ -10,7 +10,7 @@
 | :--- | :--- | :--- | :--- |
 | zain | Datapath and Pipeline Registers | feat/pipeline-registers | 4 pipeline registers (if_id_reg, id_ex_reg, ex_mem_reg, mem_wb_reg), rv_core datapath integration, register file bypass |
 | prabhpreet | Hazard Detection Unit | feat/stall-flush-logic | stall_flush_logic module, RAW hazard detection, load-use stall logic, branch flush logic, standalone unit testbench (tb_stall_flush.sv) |
-| daksh | Verification and Automation | feat/verification-ci, feat/verification-tests | GitHub Actions CI workflow (ci.yml), assembly test programs, pipeline assertions (daksh_pipeline_checks.sv), automated test runner |
+| daksh | Verification and Automation | feat/verification-ci, feat/verification-tests | GitHub Actions CI workflow (ci.yml), assembly test programs, pipeline assertions (paradoxtests_pipeline_checks.sv), automated test runner |
 
 ## Branch Architecture and Merge Flow
 The project followed an integration strategy where individual work was reviewed and tested on a staging branch before reaching production.
@@ -42,7 +42,7 @@ GitHub Actions runs on every push and pull request to validate hardware correctn
   1. Standalone unit testbenches (make tb-tb_stall_flush): 8/8 tests pass.
   2. Official sample benchmarks (make run-all TEST_DIR=sample-bmarks): test1 and test2 pass.
   3. Verilator lint check: compile-tb with zero warnings and zero errors.
-  4. SVA assertion syntax check: daksh_pipeline_checks.sv validated with --assert.
+  4. SVA assertion syntax check: paradoxtests_pipeline_checks.sv validated with --assert.
   5. Pipeline hazard functional suite: run_tests.py runs load_use, raw_distance, branch_delay, jalr_flush, and x0_hazard.
 
 ## Visual Commit Graph
