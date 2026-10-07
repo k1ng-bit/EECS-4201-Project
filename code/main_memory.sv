@@ -46,11 +46,17 @@ module main_memory #(
 );
 
     // Word-addressable memory
-    localparam int MEM_BYTES = `MEM_DEPTH;
+    `ifdef SYNTHESIS
+        localparam int MEM_BYTES = 1024;
+    `else
+        localparam int MEM_BYTES = `MEM_DEPTH;
+    `endif
+
     localparam int MEM_WORDS = MEM_BYTES / (DWIDTH/8);
 
     logic [DWIDTH-1:0] main_memory [0:MEM_WORDS-1];
 
+`ifndef SYNTHESIS
     // Temporary memory for loading program
     logic [DWIDTH-1:0] temp_memory [0:LINECOUNT - 1];
 
@@ -75,29 +81,34 @@ module main_memory #(
         end
         $display("MEMORY: Loaded program");
     end
-
+`endif
     //---------- Instruction Load ----------//
     logic [AWIDTH-1:0] program_counter;
     assign program_counter = (pc_i - BASE_ADDR) >> 2;
 
     // READ ONLY
-    always_comb begin
+        always_comb begin
         insn_o = '0;
         if (rst) begin
             insn_o = '0;
         end
         else if (insnen_i) begin
+`ifndef SYNTHESIS
             if ($isunknown(pc_i)) begin
                 insn_o = '0;
             end
-            else if ((pc_i >= BASE_ADDR) &&
-                     (pc_i + 32'd3 < BASE_ADDR + MEM_BYTES)) begin
+            else
+`endif
+            if ((pc_i >= BASE_ADDR) &&
+                (pc_i + 32'd3 < BASE_ADDR + MEM_BYTES)) begin
                 insn_o = main_memory[program_counter];
             end
             else begin
                 insn_o = 32'hDEAD_BEEF;
+`ifndef SYNTHESIS
                 $display("IMEMORY: 00B read @0x%08h (mapped 0x%08h)",
                          pc_i, program_counter);
+`endif
             end
         end
     end
@@ -107,16 +118,19 @@ module main_memory #(
     assign address = addr_i >> $clog2(AWIDTH/8);
 
     //---------- Memory Data Read ----------//
-    always_comb begin
+        always_comb begin
         data_o = '0;
         if (rst) begin
             data_o = '0;
         end
         else if (memren_i) begin
+`ifndef SYNTHESIS
             if ($isunknown(address)) begin
                 data_o = '0;
             end
-            else begin
+            else
+`endif
+            begin
                 data_o = main_memory[address];
             end
         end
