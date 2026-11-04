@@ -1,0 +1,70 @@
+---------------------------------------------------------------------------------------------------
+Test Directory: insn-bmarks                    Date: 2026-11-03 23:31:45
+Test Name:                     Date/Time:           Result:  Cycles:      Stalls:  Squashed:  CPI:  
+---------------------------------------------------------------------------------------------------
+rv32ui-p-add                   2026-11-03 23:31:56  PASS     676          0        229        1.58  
+rv32ui-p-addi                  2026-11-03 23:32:06  PASS     346          0        131        1.70  
+rv32ui-p-and                   2026-11-03 23:32:17  PASS     835          0        368        1.87  
+rv32ui-p-andi                  2026-11-03 23:32:27  PASS     291          0        120        1.82  
+rv32ui-p-auipc                 2026-11-03 23:32:37  PASS     40           0        13         2.00  
+rv32ui-p-beq                   2026-11-03 23:32:48  PASS     408          0        124        1.61  
+rv32ui-p-bge                   2026-11-03 23:32:58  PASS     452          0        141        1.67  
+rv32ui-p-bgeu                  2026-11-03 23:33:08  PASS     527          0        191        1.78  
+rv32ui-p-blt                   2026-11-03 23:33:18  PASS     410          0        126        1.62  
+rv32ui-p-bltu                  2026-11-03 23:33:29  PASS     485          0        176        1.74  
+rv32ui-p-bne                   2026-11-03 23:33:39  PASS     414          0        128        1.64  
+rv32ui-p-jal                   2026-11-03 23:33:48  PASS     34           0        10         2.00  
+rv32ui-p-jalr                  2026-11-03 23:33:59  PASS     145          0        59         2.07  
+rv32ui-p-lb                    2026-11-03 23:34:09  PASS     385          0        167        1.86  
+rv32ui-p-lbu                   2026-11-03 23:34:19  PASS     385          0        167        1.86  
+rv32ui-p-lh                    2026-11-03 23:34:30  PASS     421          0        191        1.92  
+rv32ui-p-lhu                   2026-11-03 23:34:41  PASS     442          0        205        1.96  
+rv32ui-p-lui                   2026-11-03 23:34:51  PASS     44           0        12         1.63  
+rv32ui-p-lw                    2026-11-03 23:35:03  PASS     451          0        211        1.97  
+rv32ui-p-or                    2026-11-03 23:35:14  PASS     844          0        374        1.88  
+rv32ui-p-ori                   2026-11-03 23:35:25  PASS     312          0        134        1.87  
+rv32ui-p-sb                    2026-11-03 23:35:36  PASS     664          0        255        1.69  
+rv32ui-p-sh                    2026-11-03 23:35:48  PASS     823          0        361        1.85  
+rv32ui-p-simple                2026-11-03 23:35:57  PASS     7            0        0          2.33  
+rv32ui-p-sll                   2026-11-03 23:36:08  PASS     724          0        249        1.59  
+rv32ui-p-slli                  2026-11-03 23:36:18  PASS     343          0        129        1.69  
+rv32ui-p-slt                   2026-11-03 23:36:29  PASS     658          0        217        1.56  
+rv32ui-p-slti                  2026-11-03 23:36:41  PASS     331          0        121        1.66  
+rv32ui-p-sltiu                 2026-11-03 23:36:52  PASS     331          0        121        1.66  
+rv32ui-p-sltu                  2026-11-03 23:37:02  PASS     658          0        217        1.56  
+rv32ui-p-sra                   2026-11-03 23:37:13  PASS     772          0        278        1.63  
+rv32ui-p-srai                  2026-11-03 23:37:23  PASS     388          0        159        1.78  
+rv32ui-p-srl                   2026-11-03 23:37:34  PASS     754          0        266        1.61  
+rv32ui-p-srli                  2026-11-03 23:37:45  PASS     370          0        147        1.75  
+rv32ui-p-sub                   2026-11-03 23:37:56  PASS     661          0        222        1.58  
+rv32ui-p-sw                    2026-11-03 23:38:08  PASS     848          0        379        1.88  
+rv32ui-p-xor                   2026-11-03 23:38:19  PASS     841          0        372        1.87  
+rv32ui-p-xori                  2026-11-03 23:38:30  PASS     318          0        138        1.88  
+---------------------------------------------------------------------------------------------------
+Test Directory: pipeline_tests                 Date: 2026-11-03 23:38:30
+Test Name:                     Date/Time:           Result:  Cycles:      Stalls:  Squashed:  CPI:  
+---------------------------------------------------------------------------------------------------
+5-stage-pipeline               2026-11-03 23:38:41  FAIL     N/A          N/A      N/A        N/A   
+br-taken                       2026-11-03 23:38:52  FAIL     N/A          N/A      N/A        N/A   
+branch_delay                   2026-11-03 23:39:12  FAIL     N/A          N/A      N/A        N/A   
+jalr_flush                     2026-11-03 23:39:33  FAIL     N/A          N/A      N/A        N/A   
+load-use-stall                 2026-11-03 23:39:43  FAIL     N/A          N/A      N/A        N/A   
+load_use                       2026-11-03 23:40:04  FAIL     N/A          N/A      N/A        N/A   
+mx-bypass-rs1-alu              2026-11-03 23:40:15  FAIL     N/A          N/A      N/A        N/A   
+mx-bypass-rs1-brcomp           2026-11-03 23:40:25  FAIL     N/A          N/A      N/A        N/A   
+mx-bypass-rs2-alu              2026-11-03 23:40:35  FAIL     N/A          N/A      N/A        N/A   
+mx-bypass-rs2-brcomp           2026-11-03 23:40:46  FAIL     N/A          N/A      N/A        N/A   
+raw_distance                   2026-11-03 23:41:07  FAIL     N/A          N/A      N/A        N/A   
+wd-stall                       2026-11-03 23:41:19  FAIL     N/A          N/A      N/A        N/A   
+wm-bypass-rs2-mem              2026-11-03 23:41:29  FAIL     N/A          N/A      N/A        N/A   
+wx-bypass-rs1-alu              2026-11-03 23:41:40  FAIL     N/A          N/A      N/A        N/A   
+wx-bypass-rs1-brcomp           2026-11-03 23:41:50  FAIL     N/A          N/A      N/A        N/A   
+wx-bypass-rs2-alu              2026-11-03 23:42:01  FAIL     N/A          N/A      N/A        N/A   
+wx-bypass-rs2-brcomp           2026-11-03 23:42:12  FAIL     N/A          N/A      N/A        N/A   
+x0_hazard                      2026-11-03 23:42:32  FAIL     N/A          N/A      N/A        N/A   
+---------------------------------------------------------------------------------------------------
+Test Directory: sample-bmarks                  Date: 2026-11-03 23:42:32
+Test Name:                     Date/Time:           Result:  Cycles:      Stalls:  Squashed:  CPI:  
+---------------------------------------------------------------------------------------------------
+test1                          2026-11-03 23:42:42  PASS     71           0        27         2.09  
+test2                          2026-11-03 23:42:52  PASS     87           0        34         2.07  
