@@ -23,9 +23,9 @@ module rv_core #(
     input logic reset
 );
 
-    // ================================================================
+    // 
     //  PIPELINE CONTROL SIGNALS (from stall_flush_logic)
-    // ================================================================
+    //
     logic if_pc_en;         // PC advance enable (0 = stall)
     logic stall_if_id;      // Hold IF/ID register contents
     logic flush_if_id;      // Flush IF/ID to NOP bubble
@@ -36,11 +36,11 @@ module rv_core #(
     logic              stall;
     logic              flush;
     assign stall = stall_if_id;
-    assign flush = flush_if_id || flush_id_ex;
+    assign flush = flush_if_id;
 
-    // ================================================================
+    // 
     //  IF STAGE — Instruction Fetch
-    // ================================================================
+    // 
     // IF stage signals
     logic [AWIDTH-1:0] if_pc;       // Current program counter
     logic [DWIDTH-1:0] if_insn;     // Fetched instruction from memory
@@ -65,9 +65,9 @@ module rv_core #(
         .pc_o(if_pc)
     );
 
-    // ================================================================
+    // 
     //  IF/ID PIPELINE REGISTER
-    // ================================================================
+    // 
     logic [AWIDTH-1:0] id_pc;       // PC in decode stage
     logic [DWIDTH-1:0] id_insn;     // Instruction in decode stage
 
@@ -85,9 +85,9 @@ module rv_core #(
         .insn_o(id_insn)
     );
 
-    // ================================================================
+    // 
     //  ID STAGE — Instruction Decode, Immediate Gen, Control, Reg Read
-    // ================================================================
+    //
     // Decoded instruction fields
     logic [6:0] id_opcode;
     logic [4:0] id_rd, id_rs1, id_rs2;
@@ -172,9 +172,9 @@ module rv_core #(
         .rs2data_o(id_rs2_data)
     );
 
-    // ================================================================
+    // 
     //  ID/EX PIPELINE REGISTER
-    // ================================================================
+    // 
     logic [AWIDTH-1:0] ex_pc;
     logic [DWIDTH-1:0] ex_rs1_data, ex_rs2_data, ex_imm;
     logic [4:0]        ex_rd, ex_rs1, ex_rs2;
@@ -229,9 +229,9 @@ module rv_core #(
         .alusel_o(ex_alusel)
     );
 
-    // ================================================================
+    // 
     //  EX STAGE — ALU Execution and Branch Resolution
-    // ================================================================
+    // 
     // ALU input muxing
     logic [DWIDTH-1:0] ex_alu_a, ex_alu_b;
     logic              ex_brtaken;
@@ -265,9 +265,9 @@ module rv_core #(
     // Branch/jump resolution: redirect PC on taken branch or jump
     assign ex_jump_branch = ex_pcsel || ex_brtaken;
 
-    // ================================================================
+    // 
     //  EX/MEM PIPELINE REGISTER
-    // ================================================================
+    //
     logic [AWIDTH-1:0] mem_pc;
     logic [DWIDTH-1:0] mem_alu_res, mem_rs2_data, mem_imm;
     logic [4:0]        mem_rd;
@@ -308,9 +308,9 @@ module rv_core #(
         .wbsel_o(mem_wbsel)
     );
 
-    // ================================================================
+    // 
     //  MEM STAGE — Data Memory Access
-    // ================================================================
+    // 
     logic [DWIDTH-1:0] mem_rdata;   // Data loaded from memory
 
     memory #(
@@ -332,9 +332,9 @@ module rv_core #(
         .data_o(mem_rdata)         // MEM stage: loaded data
     );
 
-    // ================================================================
+    // 
     //  MEM/WB PIPELINE REGISTER
-    // ================================================================
+    // 
     logic [AWIDTH-1:0] wb_pc;
     logic [DWIDTH-1:0] wb_alu_res, wb_mem_data, wb_imm;
     logic [1:0]        wb_wbsel;
@@ -365,9 +365,9 @@ module rv_core #(
         .wbsel_o(wb_wbsel)
     );
 
-    // ================================================================
+    //
     //  WB STAGE — Writeback to Register File
-    // ================================================================
+    //
     writeback #(
         .DWIDTH(DWIDTH),
         .AWIDTH(AWIDTH)
@@ -380,9 +380,9 @@ module rv_core #(
         .writeback_data_o(wb_data)
     );
 
-    // ================================================================
+    // 
     //  HAZARD CONTROL — Stall & Flush Logic
-    // ================================================================
+    //
     stall_flush_logic stall_flush (
         // ID stage source registers
         .id_rs1_i(id_rs1),
