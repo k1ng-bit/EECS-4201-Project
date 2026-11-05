@@ -29,7 +29,7 @@ module rv_core #(
     logic pc_en;            // 1 = PC moves foward, 0 = PC frozen
     logic f_d_stall;        // hold the F/D register contents 
     logic f_d_flush;        // flush F/D register with NOP bubble
-    logic flush_id_ex;      // flush D/X to bubble
+    logic d_x_flush;      // flush D/X to bubble
     logic flush_ex_mem;     // flush X/MEM to bubble
 
     // Testbench probes for top_tb / rv_official_tb
@@ -168,17 +168,17 @@ module rv_core #(
         .rs2data_o(r_rs2data)
     );
 
-    // 
+    
     //  D/X PIPELINE REGISTER
-    // 
-    logic [AWIDTH-1:0] ex_pc;
-    logic [DWIDTH-1:0] ex_rs1_data, ex_rs2_data, ex_imm;
-    logic [4:0]        ex_rd, ex_rs1, ex_rs2;
-    logic [2:0]        ex_funct3;
-    logic [6:0]        ex_funct7, ex_opcode;
-    logic              ex_pcsel, ex_regwren, ex_memren, ex_memwren;
-    logic [1:0]        ex_wbsel;
-    logic [3:0]        ex_alusel;
+    
+    logic [AWIDTH-1:0] d_x_pc;                                  // pc in the pipeline register
+    logic [DWIDTH-1:0] d_x_rs1data, d_x_rs2data, d_x_imm;       // register values rs1 and rs2 and imm 
+    logic [4:0]        d_x_rd, d_x_rs1, d_x_rs2;                // register numbers
+    logic [2:0]        d_x_funct3;                              
+    logic [6:0]        d_x_funct7, d_x_opcode;
+    logic              d_x_pcsel, d_x_regwren, d_x_memren, d_x_memwren;     // controls for the pipeline register
+    logic [1:0]        d_x_wbsel;
+    logic [3:0]        d_x_alusel;
 
     id_ex_reg #(
         .AWIDTH(AWIDTH),
@@ -186,7 +186,7 @@ module rv_core #(
     ) id_ex (
         .clk(clk),
         .rst(reset),
-        .flush_i(flush_id_ex),
+        .flush_i(d_x_flush),
         // Data from ID
         .pc_i(f_d_pc),
         .rs1_data_i(r_rs1data),
@@ -207,63 +207,61 @@ module rv_core #(
         .wbsel_i(c_wbsel),
         .alusel_i(c_alusel),
         // Outputs to EX
-        .pc_o(ex_pc),
-        .rs1_data_o(ex_rs1_data),
-        .rs2_data_o(ex_rs2_data),
-        .imm_o(ex_imm),
-        .rd_o(ex_rd),
-        .rs1_o(ex_rs1),
-        .rs2_o(ex_rs2),
-        .funct3_o(ex_funct3),
-        .funct7_o(ex_funct7),
-        .opcode_o(ex_opcode),
-        .pcsel_o(ex_pcsel),
-        .regwren_o(ex_regwren),
-        .memren_o(ex_memren),
-        .memwren_o(ex_memwren),
-        .wbsel_o(ex_wbsel),
-        .alusel_o(ex_alusel)
+        .pc_o(d_x_pc),
+        .rs1_data_o(d_x_rs1data),
+        .rs2_data_o(d_x_rs2data),
+        .imm_o(d_x_imm),
+        .rd_o(d_x_rd),
+        .rs1_o(d_x_rs1),
+        .rs2_o(d_x_rs2),
+        .funct3_o(d_x_funct3),
+        .funct7_o(d_x_funct7),
+        .opcode_o(d_x_opcode),
+        .pcsel_o(d_x_pcsel),
+        .regwren_o(d_x_regwren),
+        .memren_o(d_x_memren),
+        .memwren_o(d_x_memwren),
+        .wbsel_o(d_x_wbsel),
+        .alusel_o(d_x_alusel)
     );
 
-    // 
+    
     //  EX STAGE — ALU Execution and Branch Resolution
-    // 
     // ALU input muxing
     logic [DWIDTH-1:0] ex_alu_a, ex_alu_b;
     logic              ex_brtaken;
 
     // ALU operand A: always rs1 data
-    assign ex_alu_a = ex_rs1_data;
+    assign ex_alu_a = d_x_rs1data;
 
     // ALU operand B: immediate for I/L/JALR/S types, otherwise rs2 data
-    assign ex_alu_b = ((ex_opcode == `I_TYPE)      ||
-                       (ex_opcode == `I_TYPE_L)    ||
-                       (ex_opcode == `I_TYPE_JALR) ||
-                       (ex_opcode == `S_TYPE)) ? ex_imm : ex_rs2_data;
+    assign ex_alu_b = ((d_x_opcode == `I_TYPE)      ||
+                       (d_x_opcode == `I_TYPE_L)    ||
+                       (d_x_opcode == `I_TYPE_JALR) ||
+                       (d_x_opcode == `S_TYPE)) ? d_x_imm : d_x_rs2data;
 
     // ALU instance
     alu #(
         .DWIDTH(DWIDTH),
         .AWIDTH(AWIDTH)
     ) alu1 (
-        .pc_i(ex_pc),
+        .pc_i(d_x_pc),
         .rs1_i(ex_alu_a),
         .rs2_i(ex_alu_b),
-        .funct3_i(ex_funct3),
-        .funct7_i(ex_funct7),
-        .opcode_i(ex_opcode),
-        .imm_i(ex_imm),
-        .alusel_i(ex_alusel),
+        .funct3_i(d_x_funct3),
+        .funct7_i(d_x_funct7),
+        .opcode_i(d_x_opcode),
+        .imm_i(d_x_imm),
+        .alusel_i(d_x_alusel),
         .res_o(ex_alu_res),
         .brtaken_o(ex_brtaken)
     );
 
     // Branch/jump resolution: redirect PC on taken branch or jump
-    assign jump_branch = ex_pcsel || ex_brtaken;
+    assign jump_branch = d_x_pcsel || ex_brtaken;
 
-    // 
+    
     //  EX/MEM PIPELINE REGISTER
-    //
     logic [AWIDTH-1:0] mem_pc;
     logic [DWIDTH-1:0] mem_alu_res, mem_rs2_data, mem_imm;
     logic [4:0]        mem_rd;
@@ -279,18 +277,18 @@ module rv_core #(
         .rst(reset),
         .flush_i(flush_ex_mem),
         // Data from EX
-        .pc_i(ex_pc),
+        .pc_i(d_x_pc),
         .alu_res_i(ex_alu_res),
-        .rs2_data_i(ex_rs2_data),
-        .imm_i(ex_imm),
+        .rs2_data_i(d_x_rs2data),
+        .imm_i(d_x_imm),
         // Metadata from EX
-        .rd_i(ex_rd),
-        .funct3_i(ex_funct3),
+        .rd_i(d_x_rd),
+        .funct3_i(d_x_funct3),
         // Control from EX
-        .regwren_i(ex_regwren),
-        .memren_i(ex_memren),
-        .memwren_i(ex_memwren),
-        .wbsel_i(ex_wbsel),
+        .regwren_i(d_x_regwren),
+        .memren_i(d_x_memren),
+        .memwren_i(d_x_memwren),
+        .wbsel_i(d_x_wbsel),
         // Outputs to MEM
         .pc_o(mem_pc),
         .alu_res_o(mem_alu_res),
@@ -304,9 +302,9 @@ module rv_core #(
         .wbsel_o(mem_wbsel)
     );
 
-    // 
+
     //  MEM STAGE — Data Memory Access
-    // 
+    
     logic [DWIDTH-1:0] mem_rdata;   // Data loaded from memory
 
     memory #(
@@ -328,9 +326,9 @@ module rv_core #(
         .data_o(mem_rdata)         // MEM stage: loaded data
     );
 
-    // 
+    
     //  MEM/WB PIPELINE REGISTER
-    // 
+    
     logic [AWIDTH-1:0] wb_pc;
     logic [DWIDTH-1:0] wb_alu_res, wb_mem_data, wb_imm;
     logic [1:0]        wb_wbsel;
@@ -361,9 +359,9 @@ module rv_core #(
         .wbsel_o(wb_wbsel)
     );
 
-    //
+    
     //  WB STAGE — Writeback to Register File
-    //
+    
     writeback #(
         .DWIDTH(DWIDTH),
         .AWIDTH(AWIDTH)
@@ -376,9 +374,9 @@ module rv_core #(
         .writeback_data_o(wb_data)
     );
 
-    // 
+    
     //  HAZARD CONTROL — Stall & Flush Logic
-    //
+    
     stall_flush_logic stall_flush (
         // ID stage source registers
         .id_rs1_i(d_rs1),
@@ -386,11 +384,11 @@ module rv_core #(
         .id_rs1_valid_i(c_rs1sel),
         .id_rs2_valid_i(c_rs2sel),
         // EX stage destination and control
-        .ex_rd_i(ex_rd),
-        .ex_regwren_i(ex_regwren),
-        .ex_memren_i(ex_memren),
+        .ex_rd_i(d_x_rd),
+        .ex_regwren_i(d_x_regwren),
+        .ex_memren_i(d_x_memren),
         .ex_brtaken_i(ex_brtaken),
-        .ex_is_jump_i(ex_pcsel),
+        .ex_is_jump_i(d_x_pcsel),
         // MEM stage destination and control
         .mem_rd_i(mem_rd),
         .mem_regwren_i(mem_regwren),
@@ -399,7 +397,7 @@ module rv_core #(
         .pc_en_o(pc_en),
         .if_id_stall_o(f_d_stall),
         .if_id_flush_o(f_d_flush),
-        .id_ex_flush_o(flush_id_ex),
+        .id_ex_flush_o(d_x_flush),
         .ex_mem_flush_o(flush_ex_mem)
     );
 
