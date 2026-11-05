@@ -42,7 +42,6 @@ module stall_flush_logic (
     // Internal hazard signals
     logic ex_hazard;
     logic mem_hazard;
-    logic load_use_hazard;
     logic data_hazard;
     logic control_hazard;
 
@@ -60,18 +59,11 @@ module stall_flush_logic (
         ((id_rs1_valid_i && (id_rs1_i == mem_rd_i)) ||
          (id_rs2_valid_i && (id_rs2_i == mem_rd_i)));
 
-    // Load-use hazard
-    assign load_use_hazard =
-        ex_memren_i &&
-        (ex_rd_i != 5'd0) &&
-        ((id_rs1_valid_i && (id_rs1_i == ex_rd_i)) ||
-         (id_rs2_valid_i && (id_rs2_i == ex_rd_i)));
-
     // Any data hazard requires a stall
+    // load_use is covered by ex_hazard where every load sets regwren
     assign data_hazard =
         ex_hazard ||
-        mem_hazard ||
-        load_use_hazard;
+        mem_hazard;
 
     // Taken branch or jump creates a control hazard
     assign control_hazard =
