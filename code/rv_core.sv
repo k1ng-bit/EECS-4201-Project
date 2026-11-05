@@ -26,11 +26,11 @@ module rv_core #(
     
     //  PIPELINE CONTROL SIGNALS (from stall_flush_logic)
     
-    logic pc_en;            // 1 = PC moves foward, 0 = PC frozen
-    logic f_d_stall;        // hold the F/D register contents 
-    logic f_d_flush;        // flush F/D register with NOP bubble
-    logic d_x_flush;      // flush D/X to bubble
-    logic flush_ex_mem;     // flush X/MEM to bubble
+    logic pc_en;         // 1 = PC moves foward, 0 = PC frozen
+    logic f_d_stall;     // hold the F/D register contents 
+    logic f_d_flush;     // flush F/D register with NOP bubble
+    logic d_x_flush;     // flush D/X to bubble
+    logic x_m_flush;     // flush X/MEM to bubble, always 0 as branch always resolved in EX
 
     // Testbench probes for top_tb / rv_official_tb
     logic              stall;
@@ -262,12 +262,12 @@ module rv_core #(
 
     
     //  EX/MEM PIPELINE REGISTER
-    logic [AWIDTH-1:0] mem_pc;
-    logic [DWIDTH-1:0] mem_alu_res, mem_rs2_data, mem_imm;
-    logic [4:0]        mem_rd;
-    logic [2:0]        mem_funct3;
-    logic              mem_regwren, mem_memren, mem_memwren;
-    logic [1:0]        mem_wbsel;
+    logic [AWIDTH-1:0] x_m_pc;                                  
+    logic [DWIDTH-1:0] x_m_alu_res, x_m_rs2data, x_m_imm;   // alu_res for load store address or alu results. rs2data for store write
+    logic [4:0]        x_m_rd;                              
+    logic [2:0]        x_m_funct3;
+    logic              x_m_regwren, x_m_memren, x_m_memwren;  // contorl signals
+    logic [1:0]        x_m_wbsel;
 
     ex_mem_reg #(
         .AWIDTH(AWIDTH),
@@ -275,7 +275,7 @@ module rv_core #(
     ) ex_mem (
         .clk(clk),
         .rst(reset),
-        .flush_i(flush_ex_mem),
+        .flush_i(x_m_flush),
         // Data from EX
         .pc_i(d_x_pc),
         .alu_res_i(e_res),
@@ -290,22 +290,22 @@ module rv_core #(
         .memwren_i(d_x_memwren),
         .wbsel_i(d_x_wbsel),
         // Outputs to MEM
-        .pc_o(mem_pc),
-        .alu_res_o(mem_alu_res),
-        .rs2_data_o(mem_rs2_data),
-        .imm_o(mem_imm),
-        .rd_o(mem_rd),
-        .funct3_o(mem_funct3),
-        .regwren_o(mem_regwren),
-        .memren_o(mem_memren),
-        .memwren_o(mem_memwren),
-        .wbsel_o(mem_wbsel)
+        .pc_o(x_m_pc),
+        .alu_res_o(x_m_alu_res),
+        .rs2_data_o(x_m_rs2data),
+        .imm_o(x_m_imm),
+        .rd_o(x_m_rd),
+        .funct3_o(x_m_funct3),
+        .regwren_o(x_m_regwren),
+        .memren_o(x_m_memren),
+        .memwren_o(x_m_memwren),
+        .wbsel_o(x_m_wbsel)
     );
 
 
     //  MEM STAGE — Data Memory Access
     
-    logic [DWIDTH-1:0] mem_rdata;   // Data loaded from memory
+    logic [DWIDTH-1:0] m_data_o;   // Data loaded from memory
 
     memory #(
         .AWIDTH(AWIDTH),
@@ -316,14 +316,14 @@ module rv_core #(
         .clk(clk),
         .rst(reset),
         .pc_i(f_pc),              // IF stage: instruction address
-        .addr_i(mem_alu_res),      // MEM stage: data address
-        .data_i(mem_rs2_data),     // MEM stage: store data
-        .funct3_i(mem_funct3),     // MEM stage: byte/half/word select
-        .memren_i(mem_memren),     // MEM stage: read enable
-        .memwren_i(mem_memwren),   // MEM stage: write enable
+        .addr_i(x_m_alu_res),      // MEM stage: data address
+        .data_i(x_m_rs2data),     // MEM stage: store data
+        .funct3_i(x_m_funct3),     // MEM stage: byte/half/word select
+        .memren_i(x_m_memren),     // MEM stage: read enable
+        .memwren_i(x_m_memwren),   // MEM stage: write enable
         .insnen_i(1'b1),           // IF stage: always fetch instructions
         .insn_o(f_insn),          // IF stage: fetched instruction
-        .data_o(mem_rdata)         // MEM stage: loaded data
+        .data_o(m_data_o)         // MEM stage: loaded data
     );
 
     
@@ -340,15 +340,15 @@ module rv_core #(
         .clk(clk),
         .rst(reset),
         // Data from MEM
-        .pc_i(mem_pc),
-        .alu_res_i(mem_alu_res),
-        .mem_data_i(mem_rdata),
-        .imm_i(mem_imm),
+        .pc_i(x_m_pc),
+        .alu_res_i(x_m_alu_res),
+        .mem_data_i(m_data_o),
+        .imm_i(x_m_imm),
         // Metadata from MEM
-        .rd_i(mem_rd),
+        .rd_i(x_m_rd),
         // Control from MEM
-        .regwren_i(mem_regwren),
-        .wbsel_i(mem_wbsel),
+        .regwren_i(x_m_regwren),
+        .wbsel_i(x_m_wbsel),
         // Outputs to WB
         .pc_o(wb_pc),
         .alu_res_o(wb_alu_res),
@@ -390,19 +390,19 @@ module rv_core #(
         .ex_brtaken_i(e_brtaken),
         .ex_is_jump_i(d_x_pcsel),
         // MEM stage destination and control
-        .mem_rd_i(mem_rd),
-        .mem_regwren_i(mem_regwren),
-        .mem_memren_i(mem_memren),
+        .mem_rd_i(x_m_rd),
+        .mem_regwren_i(x_m_regwren),
+        .mem_memren_i(x_m_memren),
         // Pipeline control outputs
         .pc_en_o(pc_en),
         .if_id_stall_o(f_d_stall),
         .if_id_flush_o(f_d_flush),
         .id_ex_flush_o(d_x_flush),
-        .ex_mem_flush_o(flush_ex_mem)
+        .ex_mem_flush_o(x_m_flush)
     );
 
     // Synthesis keep signal so yosys does not optimize away the design
     (* keep *) logic busy;
-    assign busy = (wb_regwren || mem_memren || mem_memwren);
+    assign busy = (wb_regwren || x_m_memren || x_m_memwren);
 
 endmodule : rv_core
