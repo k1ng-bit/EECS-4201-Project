@@ -150,9 +150,9 @@ module rv_core #(
     // Register file: read in ID, write in WB
     logic [DWIDTH-1:0] r_rs1data, r_rs2data;
     // WB stage write signals (declared here, driven in WB section below)
-    logic [4:0]        wb_rd;
-    logic [DWIDTH-1:0] wb_data;
-    logic              wb_regwren;
+    logic [4:0]        m_w_rd;
+    logic [DWIDTH-1:0] wb_data;     // value that is written into reg rd - chosen by WB mux
+    logic              m_w_regwren; 
 
     register_file #(
         .DWIDTH(DWIDTH)
@@ -161,9 +161,9 @@ module rv_core #(
         .rst(reset),
         .rs1_i(d_rs1),
         .rs2_i(d_rs2),
-        .rd_i(wb_rd),
+        .rd_i(m_w_rd),
         .datawb_i(wb_data),
-        .regwren_i(wb_regwren),
+        .regwren_i(m_w_regwren),
         .rs1data_o(r_rs1data),
         .rs2data_o(r_rs2data)
     );
@@ -329,9 +329,9 @@ module rv_core #(
     
     //  MEM/WB PIPELINE REGISTER
     
-    logic [AWIDTH-1:0] wb_pc;
-    logic [DWIDTH-1:0] wb_alu_res, wb_mem_data, wb_imm;
-    logic [1:0]        wb_wbsel;
+    logic [AWIDTH-1:0] m_w_pc;
+    logic [DWIDTH-1:0] m_w_alu_res, m_w_mem_data, m_w_imm;
+    logic [1:0]        m_w_wbsel;
 
     mem_wb_reg #(
         .AWIDTH(AWIDTH),
@@ -350,13 +350,13 @@ module rv_core #(
         .regwren_i(x_m_regwren),
         .wbsel_i(x_m_wbsel),
         // Outputs to WB
-        .pc_o(wb_pc),
-        .alu_res_o(wb_alu_res),
-        .mem_data_o(wb_mem_data),
-        .imm_o(wb_imm),
-        .rd_o(wb_rd),
-        .regwren_o(wb_regwren),
-        .wbsel_o(wb_wbsel)
+        .pc_o(m_w_pc),
+        .alu_res_o(m_w_alu_res),
+        .mem_data_o(m_w_mem_data),
+        .imm_o(m_w_imm),
+        .rd_o(m_w_rd),
+        .regwren_o(m_w_regwren),
+        .wbsel_o(m_w_wbsel)
     );
 
     
@@ -366,11 +366,11 @@ module rv_core #(
         .DWIDTH(DWIDTH),
         .AWIDTH(AWIDTH)
     ) wb_wb1 (
-        .pc_i(wb_pc),
-        .alu_res_i(wb_alu_res),
-        .memory_data_i(wb_mem_data),
-        .wbsel_i(wb_wbsel),
-        .imm_i(wb_imm),
+        .pc_i(m_w_pc),
+        .alu_res_i(m_w_alu_res),
+        .memory_data_i(m_w_mem_data),
+        .wbsel_i(m_w_wbsel),
+        .imm_i(m_w_imm),
         .writeback_data_o(wb_data)
     );
 
@@ -403,6 +403,6 @@ module rv_core #(
 
     // Synthesis keep signal so yosys does not optimize away the design
     (* keep *) logic busy;
-    assign busy = (wb_regwren || x_m_memren || x_m_memwren);
+    assign busy = (m_w_regwren || x_m_memren || x_m_memwren);
 
 endmodule : rv_core

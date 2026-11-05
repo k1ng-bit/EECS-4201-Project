@@ -54,6 +54,7 @@ module register_file #(
     logic wb_write_valid;
     assign wb_write_valid = !rst && regwren_i && (rd_i != 5'd0);
 
+    // write then read bypassing - if WB is writing rd this sycle and decode is reading same reg rd, then forward.
     assign rs1data_o = (rs1_i == 5'd0) ? '0 : ((wb_write_valid && (rd_i == rs1_i)) ? datawb_i : x[rs1_i]);
     assign rs2data_o = (rs2_i == 5'd0) ? '0 : ((wb_write_valid && (rd_i == rs2_i)) ? datawb_i : x[rs2_i]);
 
