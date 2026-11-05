@@ -23,33 +23,30 @@ module rv_core #(
     input logic reset
 );
 
-    // 
+    
     //  PIPELINE CONTROL SIGNALS (from stall_flush_logic)
-    //
-    logic if_pc_en;         // PC advance enable (0 = stall)
-    logic stall_if_id;      // Hold IF/ID register contents
-    logic flush_if_id;      // Flush IF/ID to NOP bubble
-    logic flush_id_ex;      // Flush ID/EX to bubble
-    logic flush_ex_mem;     // Flush EX/MEM to bubble
+    
+    logic pc_en;            // 1 = PC moves foward, 0 = PC frozen
+    logic f_d_stall;        // hold the F/D register contents 
+    logic f_d_flush;        // flush F/D register with NOP bubble
+    logic flush_id_ex;      // flush D/X to bubble
+    logic flush_ex_mem;     // flush X/MEM to bubble
 
-    // Testbench backward-compatibility probes for top_tb / rv_official_tb
+    // Testbench probes for top_tb / rv_official_tb
     logic              stall;
     logic              flush;
-    assign stall = stall_if_id;
-    assign flush = flush_if_id;
+    assign stall = f_d_stall;
+    assign flush = f_d_flush;
 
-    // 
-    //  IF STAGE — Instruction Fetch
-    // 
-    // IF stage signals
-    logic [AWIDTH-1:0] if_pc;       // Current program counter
-    logic [DWIDTH-1:0] if_insn;     // Fetched instruction from memory
-    logic [DWIDTH-1:0] f_insn;      // Instruction alias for testbench probe
-    assign f_insn = if_insn;
+    
+    // Fetch STAGE — Instruction Fetch 
+    // Fetch stage signals
+    logic [AWIDTH-1:0] f_pc;       // Current program counter
+    logic [DWIDTH-1:0] f_insn;     // Fetched instruction from memory
 
     // Branch/jump resolution feedback from EX stage
-    logic              ex_jump_branch;  // Branch taken or jump in EX
-    logic [DWIDTH-1:0] ex_alu_res;      // Branch/jump target from ALU
+    logic              jump_branch;       // Branch taken or jump in EX
+    logic [DWIDTH-1:0] ex_alu_res;        // Branch/jump target from ALU
 
     // Fetch module: manages the PC register
     fetch #(
@@ -60,16 +57,16 @@ module rv_core #(
         .clk(clk),
         .rst(reset),
         .next_pc_i(ex_alu_res),
-        .pc_en_i(if_pc_en),
-        .jump_branch_i(ex_jump_branch),
-        .pc_o(if_pc)
+        .pc_en_i(pc_en),
+        .jump_branch_i(jump_branch),
+        .pc_o(f_pc)
     );
 
-    // 
-    //  IF/ID PIPELINE REGISTER
-    // 
-    logic [AWIDTH-1:0] id_pc;       // PC in decode stage
-    logic [DWIDTH-1:0] id_insn;     // Instruction in decode stage
+    
+    //  F/D PIPELINE REGISTER
+     
+    logic [AWIDTH-1:0] f_d_pc;       // PC in decode stage
+    logic [DWIDTH-1:0] f_d_insn;     // Instruction in decode stage
 
     if_id_reg #(
         .AWIDTH(AWIDTH),
@@ -77,17 +74,16 @@ module rv_core #(
     ) if_id (
         .clk(clk),
         .rst(reset),
-        .stall_i(stall_if_id),
-        .flush_i(flush_if_id),
-        .pc_i(if_pc),
-        .insn_i(if_insn),
-        .pc_o(id_pc),
-        .insn_o(id_insn)
+        .stall_i(f_d_stall),
+        .flush_i(f_d_flush),
+        .pc_i(f_pc),
+        .insn_i(f_insn),
+        .pc_o(f_d_pc),
+        .insn_o(f_d_insn)
     );
 
-    // 
+    
     //  ID STAGE — Instruction Decode, Immediate Gen, Control, Reg Read
-    //
     // Decoded instruction fields
     logic [6:0] id_opcode;
     logic [4:0] id_rd, id_rs1, id_rs2;
@@ -101,8 +97,8 @@ module rv_core #(
     ) decode1 (
         .clk(clk),
         .rst(reset),
-        .insn_i(id_insn),
-        .pc_i(id_pc),
+        .insn_i(f_d_insn),
+        .pc_i(f_d_pc),
         .pc_o(),             // Unused: pipeline registers handle propagation
         .insn_o(),           // Unused: pipeline registers handle propagation
         .opcode_o(id_opcode),
@@ -122,7 +118,7 @@ module rv_core #(
         .DWIDTH(DWIDTH)
     ) igen1 (
         .opcode_i(id_opcode),
-        .insn_i(id_insn),
+        .insn_i(f_d_insn),
         .imm_o(id_imm)
     );
 
@@ -136,7 +132,7 @@ module rv_core #(
     control #(
         .DWIDTH(DWIDTH)
     ) control1 (
-        .insn_i(id_insn),
+        .insn_i(f_d_insn),
         .opcode_i(id_opcode),
         .funct7_i(id_funct7),
         .funct3_i(id_funct3),
@@ -192,7 +188,7 @@ module rv_core #(
         .rst(reset),
         .flush_i(flush_id_ex),
         // Data from ID
-        .pc_i(id_pc),
+        .pc_i(f_d_pc),
         .rs1_data_i(id_rs1_data),
         .rs2_data_i(id_rs2_data),
         .imm_i(id_imm),
@@ -263,7 +259,7 @@ module rv_core #(
     );
 
     // Branch/jump resolution: redirect PC on taken branch or jump
-    assign ex_jump_branch = ex_pcsel || ex_brtaken;
+    assign jump_branch = ex_pcsel || ex_brtaken;
 
     // 
     //  EX/MEM PIPELINE REGISTER
@@ -321,14 +317,14 @@ module rv_core #(
     ) memory1 (
         .clk(clk),
         .rst(reset),
-        .pc_i(if_pc),              // IF stage: instruction address
+        .pc_i(f_pc),              // IF stage: instruction address
         .addr_i(mem_alu_res),      // MEM stage: data address
         .data_i(mem_rs2_data),     // MEM stage: store data
         .funct3_i(mem_funct3),     // MEM stage: byte/half/word select
         .memren_i(mem_memren),     // MEM stage: read enable
         .memwren_i(mem_memwren),   // MEM stage: write enable
         .insnen_i(1'b1),           // IF stage: always fetch instructions
-        .insn_o(if_insn),          // IF stage: fetched instruction
+        .insn_o(f_insn),          // IF stage: fetched instruction
         .data_o(mem_rdata)         // MEM stage: loaded data
     );
 
@@ -400,9 +396,9 @@ module rv_core #(
         .mem_regwren_i(mem_regwren),
         .mem_memren_i(mem_memren),
         // Pipeline control outputs
-        .pc_en_o(if_pc_en),
-        .if_id_stall_o(stall_if_id),
-        .if_id_flush_o(flush_if_id),
+        .pc_en_o(pc_en),
+        .if_id_stall_o(f_d_stall),
+        .if_id_flush_o(f_d_flush),
         .id_ex_flush_o(flush_id_ex),
         .ex_mem_flush_o(flush_ex_mem)
     );
