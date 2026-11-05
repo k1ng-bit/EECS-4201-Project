@@ -45,8 +45,8 @@ module rv_core #(
     logic [DWIDTH-1:0] f_insn;     // Fetched instruction from memory
 
     // Branch/jump resolution feedback from EX stage
-    logic              jump_branch;       // Branch taken or jump in EX
-    logic [DWIDTH-1:0] ex_alu_res;        // Branch/jump target from ALU
+    logic              jump_branch;         // Branch taken or jump in EX
+    logic [DWIDTH-1:0] e_res;               // alu result or branch/jump target from ALU
 
     // Fetch module: manages the PC register
     fetch #(
@@ -56,7 +56,7 @@ module rv_core #(
     ) fetch1 (
         .clk(clk),
         .rst(reset),
-        .next_pc_i(ex_alu_res),
+        .next_pc_i(e_res),
         .pc_en_i(pc_en),
         .jump_branch_i(jump_branch),
         .pc_o(f_pc)
@@ -228,14 +228,14 @@ module rv_core #(
     
     //  EX STAGE — ALU Execution and Branch Resolution
     // ALU input muxing
-    logic [DWIDTH-1:0] ex_alu_a, ex_alu_b;
-    logic              ex_brtaken;
+    logic [DWIDTH-1:0] alu_A, alu_b;        // alu input A and B
+    logic              e_brtaken;           // 1 if branch condition is true, else 0
 
     // ALU operand A: always rs1 data
-    assign ex_alu_a = d_x_rs1data;
+    assign alu_A = d_x_rs1data;
 
     // ALU operand B: immediate for I/L/JALR/S types, otherwise rs2 data
-    assign ex_alu_b = ((d_x_opcode == `I_TYPE)      ||
+    assign alu_b = ((d_x_opcode == `I_TYPE)      ||
                        (d_x_opcode == `I_TYPE_L)    ||
                        (d_x_opcode == `I_TYPE_JALR) ||
                        (d_x_opcode == `S_TYPE)) ? d_x_imm : d_x_rs2data;
@@ -244,21 +244,21 @@ module rv_core #(
     alu #(
         .DWIDTH(DWIDTH),
         .AWIDTH(AWIDTH)
-    ) alu1 (
+    ) e_alu1 (
         .pc_i(d_x_pc),
-        .rs1_i(ex_alu_a),
-        .rs2_i(ex_alu_b),
+        .rs1_i(alu_A),
+        .rs2_i(alu_b),
         .funct3_i(d_x_funct3),
         .funct7_i(d_x_funct7),
         .opcode_i(d_x_opcode),
         .imm_i(d_x_imm),
         .alusel_i(d_x_alusel),
-        .res_o(ex_alu_res),
-        .brtaken_o(ex_brtaken)
+        .res_o(e_res),
+        .brtaken_o(e_brtaken)
     );
 
     // Branch/jump resolution: redirect PC on taken branch or jump
-    assign jump_branch = d_x_pcsel || ex_brtaken;
+    assign jump_branch = d_x_pcsel || e_brtaken;
 
     
     //  EX/MEM PIPELINE REGISTER
@@ -278,7 +278,7 @@ module rv_core #(
         .flush_i(flush_ex_mem),
         // Data from EX
         .pc_i(d_x_pc),
-        .alu_res_i(ex_alu_res),
+        .alu_res_i(e_res),
         .rs2_data_i(d_x_rs2data),
         .imm_i(d_x_imm),
         // Metadata from EX
@@ -387,7 +387,7 @@ module rv_core #(
         .ex_rd_i(d_x_rd),
         .ex_regwren_i(d_x_regwren),
         .ex_memren_i(d_x_memren),
-        .ex_brtaken_i(ex_brtaken),
+        .ex_brtaken_i(e_brtaken),
         .ex_is_jump_i(d_x_pcsel),
         // MEM stage destination and control
         .mem_rd_i(mem_rd),
