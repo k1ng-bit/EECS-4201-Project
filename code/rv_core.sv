@@ -85,10 +85,10 @@ module rv_core #(
     
     //  ID STAGE — Instruction Decode, Immediate Gen, Control, Reg Read
     // Decoded instruction fields
-    logic [6:0] id_opcode;
-    logic [4:0] id_rd, id_rs1, id_rs2;
-    logic [6:0] id_funct7;
-    logic [2:0] id_funct3;
+    logic [6:0] d_opcode;
+    logic [4:0] d_rd, d_rs1, d_rs2;
+    logic [6:0] d_funct7;
+    logic [2:0] d_funct3;
 
     // Decode module: extract instruction fields
     decode #(
@@ -101,54 +101,54 @@ module rv_core #(
         .pc_i(f_d_pc),
         .pc_o(),             // Unused: pipeline registers handle propagation
         .insn_o(),           // Unused: pipeline registers handle propagation
-        .opcode_o(id_opcode),
-        .rd_o(id_rd),
-        .rs1_o(id_rs1),
-        .rs2_o(id_rs2),
-        .funct7_o(id_funct7),
-        .funct3_o(id_funct3),
+        .opcode_o(d_opcode),
+        .rd_o(d_rd),
+        .rs1_o(d_rs1),
+        .rs2_o(d_rs2),
+        .funct7_o(d_funct7),
+        .funct3_o(d_funct3),
         .shamt_o(),          // Unused: shamt derived from immediate
         .imm_o()             // Unused: immediate comes from igen
     );
 
     // Immediate generator
-    logic [DWIDTH-1:0] id_imm;
+    logic [DWIDTH-1:0] d_imm;
 
     igen #(
         .DWIDTH(DWIDTH)
     ) igen1 (
-        .opcode_i(id_opcode),
+        .opcode_i(d_opcode),
         .insn_i(f_d_insn),
-        .imm_o(id_imm)
+        .imm_o(d_imm)
     );
 
     // Control path: generate control signals from decoded instruction
-    logic       id_pcsel, id_immsel, id_regwren;
-    logic       id_rs1sel, id_rs2sel;
-    logic       id_memren, id_memwren;
-    logic [1:0] id_wbsel;
-    logic [3:0] id_alusel;
+    logic       c_pcsel, c_immsel, c_regwren;
+    logic       c_rs1sel, c_rs2sel;
+    logic       c_memren, c_memwren;
+    logic [1:0] c_wbsel;
+    logic [3:0] c_alusel;
 
     control #(
         .DWIDTH(DWIDTH)
     ) control1 (
         .insn_i(f_d_insn),
-        .opcode_i(id_opcode),
-        .funct7_i(id_funct7),
-        .funct3_i(id_funct3),
-        .pcsel_o(id_pcsel),
-        .immsel_o(id_immsel),
-        .regwren_o(id_regwren),
-        .rs1sel_o(id_rs1sel),
-        .rs2sel_o(id_rs2sel),
-        .memren_o(id_memren),
-        .memwren_o(id_memwren),
-        .wbsel_o(id_wbsel),
-        .alusel_o(id_alusel)
+        .opcode_i(d_opcode),
+        .funct7_i(d_funct7),
+        .funct3_i(d_funct3),
+        .pcsel_o(c_pcsel),
+        .immsel_o(c_immsel),
+        .regwren_o(c_regwren),
+        .rs1sel_o(c_rs1sel),
+        .rs2sel_o(c_rs2sel),
+        .memren_o(c_memren),
+        .memwren_o(c_memwren),
+        .wbsel_o(c_wbsel),
+        .alusel_o(c_alusel)
     );
 
     // Register file: read in ID, write in WB
-    logic [DWIDTH-1:0] id_rs1_data, id_rs2_data;
+    logic [DWIDTH-1:0] r_rs1data, r_rs2data;
     // WB stage write signals (declared here, driven in WB section below)
     logic [4:0]        wb_rd;
     logic [DWIDTH-1:0] wb_data;
@@ -159,17 +159,17 @@ module rv_core #(
     ) register_file1 (
         .clk(clk),
         .rst(reset),
-        .rs1_i(id_rs1),
-        .rs2_i(id_rs2),
+        .rs1_i(d_rs1),
+        .rs2_i(d_rs2),
         .rd_i(wb_rd),
         .datawb_i(wb_data),
         .regwren_i(wb_regwren),
-        .rs1data_o(id_rs1_data),
-        .rs2data_o(id_rs2_data)
+        .rs1data_o(r_rs1data),
+        .rs2data_o(r_rs2data)
     );
 
     // 
-    //  ID/EX PIPELINE REGISTER
+    //  D/X PIPELINE REGISTER
     // 
     logic [AWIDTH-1:0] ex_pc;
     logic [DWIDTH-1:0] ex_rs1_data, ex_rs2_data, ex_imm;
@@ -189,23 +189,23 @@ module rv_core #(
         .flush_i(flush_id_ex),
         // Data from ID
         .pc_i(f_d_pc),
-        .rs1_data_i(id_rs1_data),
-        .rs2_data_i(id_rs2_data),
-        .imm_i(id_imm),
+        .rs1_data_i(r_rs1data),
+        .rs2_data_i(r_rs2data),
+        .imm_i(d_imm),
         // Metadata from ID
-        .rd_i(id_rd),
-        .rs1_i(id_rs1),
-        .rs2_i(id_rs2),
-        .funct3_i(id_funct3),
-        .funct7_i(id_funct7),
-        .opcode_i(id_opcode),
+        .rd_i(d_rd),
+        .rs1_i(d_rs1),
+        .rs2_i(d_rs2),
+        .funct3_i(d_funct3),
+        .funct7_i(d_funct7),
+        .opcode_i(d_opcode),
         // Control from ID
-        .pcsel_i(id_pcsel),
-        .regwren_i(id_regwren),
-        .memren_i(id_memren),
-        .memwren_i(id_memwren),
-        .wbsel_i(id_wbsel),
-        .alusel_i(id_alusel),
+        .pcsel_i(c_pcsel),
+        .regwren_i(c_regwren),
+        .memren_i(c_memren),
+        .memwren_i(c_memwren),
+        .wbsel_i(c_wbsel),
+        .alusel_i(c_alusel),
         // Outputs to EX
         .pc_o(ex_pc),
         .rs1_data_o(ex_rs1_data),
@@ -381,10 +381,10 @@ module rv_core #(
     //
     stall_flush_logic stall_flush (
         // ID stage source registers
-        .id_rs1_i(id_rs1),
-        .id_rs2_i(id_rs2),
-        .id_rs1_valid_i(id_rs1sel),
-        .id_rs2_valid_i(id_rs2sel),
+        .id_rs1_i(d_rs1),
+        .id_rs2_i(d_rs2),
+        .id_rs1_valid_i(c_rs1sel),
+        .id_rs2_valid_i(c_rs2sel),
         // EX stage destination and control
         .ex_rd_i(ex_rd),
         .ex_regwren_i(ex_regwren),
