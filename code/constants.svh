@@ -9,6 +9,10 @@
 
 parameter logic [31:0] ZERO = 32'd0;
 
+// Memory latency in clock cycle. Set to 50 clock cycles as per prof feedback
+// for 1 - answer arrives in next clock edge, for 50 - answer takes 50 clock ticks
+parameter int MEM_LATENCY = 1;           
+
 /*
  * Define constants as required...
  */
