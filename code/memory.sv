@@ -28,13 +28,15 @@ module memory #(
 ) (
     input  logic clk,
     input  logic rst,
-    input  logic [AWIDTH-1:0] pc_i, // instruction address
-    input  logic [AWIDTH-1:0] addr_i, // data address
-    input  logic [DWIDTH-1:0] data_i, // data to write to memory
+    input  logic [AWIDTH-1:0] pc_i,     // instruction address
+    input  logic [AWIDTH-1:0] addr_i,   // data address
+    input  logic [DWIDTH-1:0] data_i,   // data to write to memory
     input  logic [2:0] funct3_i,
     input  logic memren_i,
     input  logic memwren_i,
     input  logic insnen_i,
+    input  logic insn_taken_i,          // 1 = start a new fetch
+    output logic insn_ready_o,          // 1 = ready signal for pc_i
     output logic [DWIDTH-1:0] insn_o,
     output logic [DWIDTH-1:0] data_o
 );
@@ -77,6 +79,8 @@ module memory #(
         .memren_i(memren_i),
         .memwren_i(memwren_i),
         .insnen_i(insnen_i),
+        .insn_taken_i(insn_taken_i),
+        .insn_ready_o(insn_ready_o),
         .insn_o(insn_o),
         .data_o(mem_to_con_data)
     );

@@ -39,7 +39,9 @@ module main_memory #(
     input  logic memren_i,                      // read memory enable
     input  logic memwren_i,                     // write memory enable
     input  logic insnen_i,                      // instruction read enable
+    input logic insn_taken_i,                   // 1 = core moved the Program Counter this cycle and started a new fetch
     // outputs
+    output logic insn_ready_o,                  // 1 = the instruction for pc_i is ready.
     output logic [DWIDTH-1:0] insn_o,           // instruction output
     output logic [DWIDTH-1:0] data_o            // read data from memory output
     // ------------------- //
@@ -82,6 +84,26 @@ module main_memory #(
         $display("MEMORY: Loaded program");
     end
 `endif
+
+    /* 
+    Fetch waiter process, counts the cycles since current fetch,
+    When count equals MEM_LATENCY, insn_ready_o signal turns 1 to 
+    signal next instruction can be fetched and stays on until insn_taken_i is true.
+    When next instruction is taken, count should restart.
+    */
+    int f_wait_cnt;
+
+    always_ff @ (posedge clk or posedge rst) begin
+        if (rst) 
+            f_wait_cnt <= 0;
+        else if (insn_taken_i)
+            f_wait_cnt <= 0;
+        else if (f_wait_cnt != MEM_LATENCY)
+            f_wait_cnt <= f_wait_cnt + 1;
+    end
+
+    assign insn_ready_o = (f_wait_cnt == MEM_LATENCY);
+
     //---------- Instruction Load ----------//
     logic [AWIDTH-1:0] program_counter;
     assign program_counter = (pc_i - BASE_ADDR) >> 2;

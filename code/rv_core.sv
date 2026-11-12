@@ -43,6 +43,7 @@ module rv_core #(
     // Fetch stage signals
     logic [AWIDTH-1:0] f_pc;       // Current program counter
     logic [DWIDTH-1:0] f_insn;     // Fetched instruction from memory
+    logic f_insn_ready;            // Instruction ready to be fetched , 1 = next instruction ready for f_pc
 
     // Branch/jump resolution feedback from EX stage
     logic              jump_branch;         // Branch taken or jump in EX
@@ -315,15 +316,17 @@ module rv_core #(
     ) memory1 (
         .clk(clk),
         .rst(reset),
-        .pc_i(f_pc),              // IF stage: instruction address
-        .addr_i(x_m_alu_res),      // MEM stage: data address
-        .data_i(x_m_rs2data),     // MEM stage: store data
-        .funct3_i(x_m_funct3),     // MEM stage: byte/half/word select
-        .memren_i(x_m_memren),     // MEM stage: read enable
-        .memwren_i(x_m_memwren),   // MEM stage: write enable
-        .insnen_i(1'b1),           // IF stage: always fetch instructions
-        .insn_o(f_insn),          // IF stage: fetched instruction
-        .data_o(m_data_o)         // MEM stage: loaded data
+        .pc_i(f_pc),                // IF stage: instruction address
+        .addr_i(x_m_alu_res),       // MEM stage: data address
+        .data_i(x_m_rs2data),       // MEM stage: store data
+        .funct3_i(x_m_funct3),      // MEM stage: byte/half/word select
+        .memren_i(x_m_memren),      // MEM stage: read enable
+        .memwren_i(x_m_memwren),    // MEM stage: write enable
+        .insnen_i(1'b1),            // IF stage: always fetch instructions
+        .insn_taken_i(pc_en),       // IF stage
+        .insn_ready_o(f_insn_ready),// IF stage
+        .insn_o(f_insn),            // IF stage: fetched instruction
+        .data_o(m_data_o)           // MEM stage: loaded data
     );
 
     
