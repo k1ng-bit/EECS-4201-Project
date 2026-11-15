@@ -13,6 +13,10 @@
  */
 
 module stall_flush_logic (
+    
+    // IF stage: fetch waiter
+    input  logic       insn_ready_i,
+
     // ID stage: current instruction source registers
     input  logic [4:0] id_rs1_i,
     input  logic [4:0] id_rs2_i,
@@ -36,6 +40,7 @@ module stall_flush_logic (
     output logic       if_id_stall_o,
     output logic       if_id_flush_o,
     output logic       id_ex_flush_o,
+    output logic       if_id_bubble_o,
     output logic       ex_mem_flush_o
 );
 
@@ -44,6 +49,7 @@ module stall_flush_logic (
     logic mem_hazard;
     logic data_hazard;
     logic control_hazard;
+    logic fetch_wait;
 
     // EX-stage RAW hazard
     assign ex_hazard =
@@ -70,9 +76,12 @@ module stall_flush_logic (
         ex_brtaken_i ||
         ex_is_jump_i;
 
+    // Stall PC and IF/ID gets a bubble as instruction is not ready and there is no control hazard
+    assign fetch_wait = !insn_ready_i && !control_hazard; 
+
     // Stall PC when a data hazard is present
     assign pc_en_o =
-        !(data_hazard && !control_hazard);
+        !(data_hazard && !control_hazard) && !fetch_wait;
 
     // Hold IF/ID during a data hazard
     assign if_id_stall_o =
@@ -81,6 +90,9 @@ module stall_flush_logic (
     // Flush IF/ID after a taken branch or jump
     assign if_id_flush_o =
         control_hazard;
+
+    // Bubble at IF/ID when waiting for fetch and no data hazard
+    assign if_id_bubble_o = fetch_wait && !data_hazard;
 
     // Insert a bubble into ID/EX for a data hazard
     // or flush it for a taken branch/jump

@@ -27,15 +27,18 @@ module rv_core #(
     //  PIPELINE CONTROL SIGNALS (from stall_flush_logic)
     
     logic pc_en;         // 1 = PC moves foward, 0 = PC frozen
-    logic f_d_stall;     // hold the F/D register contents 
+    logic f_d_stall;     // hold the F/D register contents
     logic f_d_flush;     // flush F/D register with NOP bubble
+    logic f_d_bubble;    // bubble on F/D
     logic d_x_flush;     // flush D/X to bubble
     logic x_m_flush;     // flush X/MEM to bubble, always 0 as branch always resolved in EX
 
     // Testbench probes for top_tb / rv_official_tb
     logic              stall;
     logic              flush;
-    assign stall = f_d_stall;
+    
+    // stall if decode is on hold due to data hazard or gets bubble because fetch is still waiting
+    assign stall = f_d_stall || f_d_bubble;
     assign flush = f_d_flush;
 
     
@@ -76,7 +79,7 @@ module rv_core #(
         .clk(clk),
         .rst(reset),
         .stall_i(f_d_stall),
-        .flush_i(f_d_flush),
+        .flush_i(f_d_flush || f_d_bubble),
         .pc_i(f_pc),
         .insn_i(f_insn),
         .pc_o(f_d_pc),
@@ -381,6 +384,8 @@ module rv_core #(
     //  HAZARD CONTROL — Stall & Flush Logic
     
     stall_flush_logic stall_flush (
+        // IF instruction ready signal
+        .insn_ready_i(f_insn_ready),
         // ID stage source registers
         .id_rs1_i(d_rs1),
         .id_rs2_i(d_rs2),
@@ -400,6 +405,7 @@ module rv_core #(
         .pc_en_o(pc_en),
         .if_id_stall_o(f_d_stall),
         .if_id_flush_o(f_d_flush),
+        .if_id_bubble_o(f_d_bubble),
         .id_ex_flush_o(d_x_flush),
         .ex_mem_flush_o(x_m_flush)
     );

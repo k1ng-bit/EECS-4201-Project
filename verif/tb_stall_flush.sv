@@ -44,6 +44,7 @@ module tb_stall_flush;
 
     // Device Under Test
     stall_flush_logic dut (
+        .insn_ready_i(1'b1),
         .id_rs1_i(id_rs1_i),
         .id_rs2_i(id_rs2_i),
         .id_rs1_valid_i(id_rs1_valid_i),
@@ -62,6 +63,7 @@ module tb_stall_flush;
         .pc_en_o(pc_en_o),
         .if_id_stall_o(if_id_stall_o),
         .if_id_flush_o(if_id_flush_o),
+        .if_id_bubble_o(),
         .id_ex_flush_o(id_ex_flush_o),
         .ex_mem_flush_o(ex_mem_flush_o)
     );
