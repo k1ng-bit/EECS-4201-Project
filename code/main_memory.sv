@@ -108,25 +108,26 @@ module main_memory #(
     logic [AWIDTH-1:0] program_counter;
     assign program_counter = (pc_i - BASE_ADDR) >> 2;
 
-    // READ ONLY
-        always_comb begin
-        insn_o = '0;
+    // Instruction read is now sequential instead of combinational. Instruction now appears
+    // after MEM_LATENCY amount of cycles.
+        always_ff @(posedge clk) begin
+        insn_o <= '0;
         if (rst) begin
-            insn_o = '0;
+            insn_o <= '0;
         end
         else if (insnen_i) begin
 `ifndef SYNTHESIS
             if ($isunknown(pc_i)) begin
-                insn_o = '0;
+                insn_o <= '0;
             end
             else
 `endif
             if ((pc_i >= BASE_ADDR) &&
                 (pc_i + 32'd3 < BASE_ADDR + MEM_BYTES)) begin
-                insn_o = main_memory[program_counter];
+                insn_o <= main_memory[program_counter];
             end
             else begin
-                insn_o = 32'hDEAD_BEEF;
+                insn_o <= 32'hDEAD_BEEF;
 `ifndef SYNTHESIS
                 $display("IMEMORY: 00B read @0x%08h (mapped 0x%08h)",
                          pc_i, program_counter);
