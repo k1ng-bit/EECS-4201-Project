@@ -106,8 +106,8 @@ module stall_flush_logic (
     // or flush it for a taken branch/jump
     assign id_ex_flush_o =
         !mem_wait   &&
-        data_hazard ||
-        control_hazard;
+        (data_hazard ||
+        control_hazard);
 
     // EX/MEM is not flushed by Stage 2 hazard logic
     assign ex_mem_flush_o =
