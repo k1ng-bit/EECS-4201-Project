@@ -38,6 +38,7 @@ module memory #(
     input  logic insn_taken_i,          // 1 = start a new fetch
     output logic insn_ready_o,          // 1 = ready signal for pc_i
     output logic [DWIDTH-1:0] insn_o,
+    output logic data_ready_o,
     output logic [DWIDTH-1:0] data_o
 );
 
@@ -82,6 +83,7 @@ module memory #(
         .insn_taken_i(insn_taken_i),
         .insn_ready_o(insn_ready_o),
         .insn_o(insn_o),
+        .data_ready_o(data_ready_o),
         .data_o(mem_to_con_data)
     );
 

@@ -309,6 +309,7 @@ module rv_core #(
 
     //  MEM STAGE — Data Memory Access
     
+    logic m_data_ready;            // Data ready signal, 1 = memory has finished load / store in MEM stage.
     logic [DWIDTH-1:0] m_data_o;   // Data loaded from memory
 
     memory #(
@@ -329,6 +330,7 @@ module rv_core #(
         .insn_taken_i(pc_en),       // IF stage
         .insn_ready_o(f_insn_ready),// IF stage
         .insn_o(f_insn),            // IF stage: fetched instruction
+        .data_ready_o(m_data_ready),// MEM stage: data ready
         .data_o(m_data_o)           // MEM stage: loaded data
     );
 

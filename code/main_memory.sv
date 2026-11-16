@@ -39,10 +39,11 @@ module main_memory #(
     input  logic memren_i,                      // read memory enable
     input  logic memwren_i,                     // write memory enable
     input  logic insnen_i,                      // instruction read enable
-    input logic insn_taken_i,                   // 1 = core moved the Program Counter this cycle and started a new fetch
+    input  logic insn_taken_i,                   // 1 = core moved the Program Counter this cycle and started a new fetch
     // outputs
     output logic insn_ready_o,                  // 1 = the instruction for pc_i is ready.
     output logic [DWIDTH-1:0] insn_o,           // instruction output
+    output logic data_ready_o,                  // 1 = load/store in MEM is finished
     output logic [DWIDTH-1:0] data_o            // read data from memory output
     // ------------------- //
 );
@@ -139,6 +140,28 @@ module main_memory #(
     // Shift byte address from memory controller to word index for memory
     logic [AWIDTH-1:0] address;
     assign address = addr_i >> $clog2(AWIDTH/8);
+
+
+    /*
+    Adding the Data waiter to slow down the memory stage for loads and stores. d_wait_cnt is a counter
+    to count the cycles. When the count reaches MEM_LATENCY value the data_ready_o signal turns on.
+    */
+    logic data_req;
+    int   d_wait_cnt;
+
+    assign data_req = memren_i || memwren_i;
+
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst)
+            d_wait_cnt <= 0;
+        else if (!data_req || data_ready_o)
+            d_wait_cnt <= 0;
+        else
+            d_wait_cnt <= d_wait_cnt + 1;
+    end
+
+    assign data_ready_o = data_req && (d_wait_cnt == MEM_LATENCY);
+
 
     //---------- Memory Data Read ----------//
         always_comb begin
