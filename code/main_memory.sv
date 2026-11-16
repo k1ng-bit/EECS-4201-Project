@@ -164,20 +164,21 @@ module main_memory #(
 
 
     //---------- Memory Data Read ----------//
-        always_comb begin
-        data_o = '0;
+    // Changing memory from combinational to sequential and adding non-blocking assignments.
+        always_ff @(posedge clk) begin
+        data_o <= '0;
         if (rst) begin
-            data_o = '0;
+            data_o <= '0;
         end
         else if (memren_i) begin
 `ifndef SYNTHESIS
             if ($isunknown(address)) begin
-                data_o = '0;
+                data_o <= '0;
             end
             else
 `endif
             begin
-                data_o = main_memory[address];
+                data_o <= main_memory[address];
             end
         end
     end
