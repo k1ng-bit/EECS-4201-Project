@@ -191,6 +191,7 @@ module rv_core #(
         .clk(clk),
         .rst(reset),
         .flush_i(d_x_flush),
+        .stall_i(1'b0),
         // Data from ID
         .pc_i(f_d_pc),
         .rs1_data_i(r_rs1data),
@@ -280,6 +281,7 @@ module rv_core #(
         .clk(clk),
         .rst(reset),
         .flush_i(x_m_flush),
+        .stall_i(1'b0),
         // Data from EX
         .pc_i(d_x_pc),
         .alu_res_i(e_res),
@@ -347,6 +349,7 @@ module rv_core #(
     ) mem_wb (
         .clk(clk),
         .rst(reset),
+        .flush_i(1'b0),
         // Data from MEM
         .pc_i(x_m_pc),
         .alu_res_i(x_m_alu_res),

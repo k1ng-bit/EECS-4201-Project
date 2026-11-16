@@ -31,6 +31,7 @@ module ex_mem_reg #(
     input  logic              clk,
     input  logic              rst,
     input  logic              flush_i,
+    input  logic              stall_i,
     // Data inputs from EX stage
     input  logic [AWIDTH-1:0] pc_i,
     input  logic [DWIDTH-1:0] alu_res_i,
@@ -67,7 +68,7 @@ module ex_mem_reg #(
         end else if (flush_i) begin
             alu_res_o  <= '0;
             rs2_data_o <= '0;
-        end else begin
+        end else if (!stall_i) begin
             alu_res_o  <= alu_res_i;
             rs2_data_o <= rs2_data_i;
         end
@@ -81,7 +82,7 @@ module ex_mem_reg #(
         end else if (flush_i) begin
             pc_o  <= '0;
             imm_o <= '0;
-        end else begin
+        end else if (!stall_i) begin
             pc_o  <= pc_i;
             imm_o <= imm_i;
         end
@@ -95,7 +96,7 @@ module ex_mem_reg #(
         end else if (flush_i) begin
             rd_o     <= '0;
             funct3_o <= '0;
-        end else begin
+        end else if (!stall_i) begin
             rd_o     <= rd_i;
             funct3_o <= funct3_i;
         end
@@ -111,7 +112,7 @@ module ex_mem_reg #(
             regwren_o <= '0;
             memren_o  <= '0;
             memwren_o <= '0;
-        end else begin
+        end else if (!stall_i) begin
             regwren_o <= regwren_i;
             memren_o  <= memren_i;
             memwren_o <= memwren_i;
@@ -122,7 +123,7 @@ module ex_mem_reg #(
     always_ff @(posedge clk or posedge rst) begin
         if (rst)            wbsel_o <= '0;
         else if (flush_i)   wbsel_o <= '0;
-        else                wbsel_o <= wbsel_i;
+        else if (!stall_i)  wbsel_o <= wbsel_i;
     end
 
 endmodule : ex_mem_reg

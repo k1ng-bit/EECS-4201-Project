@@ -29,6 +29,7 @@ module mem_wb_reg #(
 )(
     input  logic              clk,
     input  logic              rst,
+    input  logic              flush_i,
     // Data inputs from MEM stage
     input  logic [AWIDTH-1:0] pc_i,
     input  logic [DWIDTH-1:0] alu_res_i,
@@ -56,6 +57,9 @@ module mem_wb_reg #(
         if (rst) begin
             pc_o      <= '0;
             alu_res_o <= '0;
+        end else if (flush_i) begin
+            pc_o <= '0;
+            alu_res_o <= '0;
         end else begin
             pc_o      <= pc_i;
             alu_res_o <= alu_res_i;
@@ -67,6 +71,9 @@ module mem_wb_reg #(
         if (rst) begin
             mem_data_o <= '0;
             imm_o      <= '0;
+        end else if (flush_i) begin
+            mem_data_o <= '0;
+            imm_o <= '0;
         end else begin
             mem_data_o <= mem_data_i;
             imm_o      <= imm_i;
@@ -76,6 +83,10 @@ module mem_wb_reg #(
     // Latch destination register and writeback control
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
+            rd_o      <= '0;
+            regwren_o <= '0;
+            wbsel_o   <= '0;
+        end else if (flush_i) begin
             rd_o      <= '0;
             regwren_o <= '0;
             wbsel_o   <= '0;

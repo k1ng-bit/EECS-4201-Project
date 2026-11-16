@@ -31,6 +31,7 @@ module id_ex_reg #(
     input  logic              clk,
     input  logic              rst,
     input  logic              flush_i,
+    input  logic              stall_i,
     // Data inputs from ID stage
     input  logic [AWIDTH-1:0] pc_i,
     input  logic [DWIDTH-1:0] rs1_data_i,
@@ -79,7 +80,7 @@ module id_ex_reg #(
         end else if (flush_i) begin
             pc_o  <= '0;
             imm_o <= '0;
-        end else begin
+        end else if (!stall_i) begin
             pc_o  <= pc_i;
             imm_o <= imm_i;
         end
@@ -93,7 +94,7 @@ module id_ex_reg #(
         end else if (flush_i) begin
             rs1_data_o <= '0;
             rs2_data_o <= '0;
-        end else begin
+        end else if (!stall_i) begin
             rs1_data_o <= rs1_data_i;
             rs2_data_o <= rs2_data_i;
         end
@@ -109,7 +110,7 @@ module id_ex_reg #(
             rd_o  <= '0;
             rs1_o <= '0;
             rs2_o <= '0;
-        end else begin
+        end else if (!stall_i) begin
             rd_o  <= rd_i;
             rs1_o <= rs1_i;
             rs2_o <= rs2_i;
@@ -126,7 +127,7 @@ module id_ex_reg #(
             funct3_o <= '0;
             funct7_o <= '0;
             opcode_o <= '0;
-        end else begin
+        end else if (!stall_i) begin
             funct3_o <= funct3_i;
             funct7_o <= funct7_i;
             opcode_o <= opcode_i;
@@ -143,7 +144,7 @@ module id_ex_reg #(
             pcsel_o   <= '0;
             regwren_o <= '0;
             memren_o  <= '0;
-        end else begin
+        end else if (!stall_i) begin
             pcsel_o   <= pcsel_i;
             regwren_o <= regwren_i;
             memren_o  <= memren_i;
@@ -160,7 +161,7 @@ module id_ex_reg #(
             memwren_o <= '0;
             wbsel_o   <= '0;
             alusel_o  <= `ALU_NOP;
-        end else begin
+        end else if (!stall_i) begin
             memwren_o <= memwren_i;
             wbsel_o   <= wbsel_i;
             alusel_o  <= alusel_i;
