@@ -185,7 +185,7 @@ module main_memory #(
     //---------- Memory Data Write ----------//
     // +: is an "Index Part-Select"; [starting_bit +: width_select]
     always_ff @(posedge clk) begin
-        if (memwren_i) begin
+        if (memwren_i && data_ready_o) begin
             // Manually checking each byte lane
             for (int i = 0; i < (DWIDTH/8); i++) begin
                 // This cycles through each byte of the memory block

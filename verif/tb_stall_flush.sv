@@ -59,13 +59,18 @@ module tb_stall_flush;
         .mem_rd_i(mem_rd_i),
         .mem_regwren_i(mem_regwren_i),
         .mem_memren_i(mem_memren_i),
+        .mem_memwren_i(1'b0),
+        .mem_ready_i(1'b1),
 
         .pc_en_o(pc_en_o),
         .if_id_stall_o(if_id_stall_o),
         .if_id_flush_o(if_id_flush_o),
         .if_id_bubble_o(),
+        .id_ex_stall_o(),
         .id_ex_flush_o(id_ex_flush_o),
-        .ex_mem_flush_o(ex_mem_flush_o)
+        .ex_mem_stall_o(),
+        .ex_mem_flush_o(ex_mem_flush_o),
+        .mem_wb_flush_o()
     );
 
     // Check all output signals against expected values

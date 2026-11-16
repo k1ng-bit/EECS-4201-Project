@@ -31,8 +31,10 @@ module rv_core #(
     logic f_d_flush;     // flush F/D register with NOP bubble
     logic f_d_bubble;    // bubble on F/D
     logic d_x_flush;     // flush D/X to bubble
+    logic d_x_stall;
+    logic x_m_stall;
     logic x_m_flush;     // flush X/MEM to bubble, always 0 as branch always resolved in EX
-
+    logic m_w_flush;    
     // Testbench probes for top_tb / rv_official_tb
     logic              stall;
     logic              flush;
@@ -191,7 +193,7 @@ module rv_core #(
         .clk(clk),
         .rst(reset),
         .flush_i(d_x_flush),
-        .stall_i(1'b0),
+        .stall_i(d_x_stall),
         // Data from ID
         .pc_i(f_d_pc),
         .rs1_data_i(r_rs1data),
@@ -281,7 +283,7 @@ module rv_core #(
         .clk(clk),
         .rst(reset),
         .flush_i(x_m_flush),
-        .stall_i(1'b0),
+        .stall_i(x_m_stall),
         // Data from EX
         .pc_i(d_x_pc),
         .alu_res_i(e_res),
@@ -349,7 +351,7 @@ module rv_core #(
     ) mem_wb (
         .clk(clk),
         .rst(reset),
-        .flush_i(1'b0),
+        .flush_i(m_w_flush),
         // Data from MEM
         .pc_i(x_m_pc),
         .alu_res_i(x_m_alu_res),
@@ -406,13 +408,18 @@ module rv_core #(
         .mem_rd_i(x_m_rd),
         .mem_regwren_i(x_m_regwren),
         .mem_memren_i(x_m_memren),
+        .mem_memwren_i(x_m_memwren), 
+        .mem_ready_i(m_data_ready),
         // Pipeline control outputs
         .pc_en_o(pc_en),
         .if_id_stall_o(f_d_stall),
         .if_id_flush_o(f_d_flush),
         .if_id_bubble_o(f_d_bubble),
+        .id_ex_stall_o(d_x_stall),
         .id_ex_flush_o(d_x_flush),
-        .ex_mem_flush_o(x_m_flush)
+        .ex_mem_stall_o(x_m_stall),
+        .ex_mem_flush_o(x_m_flush),
+        .mem_wb_flush_o(m_w_flush)
     );
 
     // Synthesis keep signal so yosys does not optimize away the design

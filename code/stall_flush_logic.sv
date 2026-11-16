@@ -34,14 +34,19 @@ module stall_flush_logic (
     input  logic [4:0] mem_rd_i,
     input  logic       mem_regwren_i,
     input  logic       mem_memren_i,
+    input  logic       mem_memwren_i,
+    input  logic       mem_ready_i,
 
     // Pipeline control outputs
     output logic       pc_en_o,
     output logic       if_id_stall_o,
     output logic       if_id_flush_o,
     output logic       id_ex_flush_o,
+    output logic       id_ex_stall_o,
     output logic       if_id_bubble_o,
-    output logic       ex_mem_flush_o
+    output logic       ex_mem_flush_o,
+    output logic       ex_mem_stall_o, 
+    output logic       mem_wb_flush_o
 );
 
     // Internal hazard signals
@@ -50,6 +55,7 @@ module stall_flush_logic (
     logic data_hazard;
     logic control_hazard;
     logic fetch_wait;
+    logic mem_wait;
 
     // EX-stage RAW hazard
     assign ex_hazard =
@@ -79,29 +85,36 @@ module stall_flush_logic (
     // Stall PC and IF/ID gets a bubble as instruction is not ready and there is no control hazard
     assign fetch_wait = !insn_ready_i && !control_hazard; 
 
+    assign mem_wait = (mem_memren_i || mem_memwren_i) && !mem_ready_i;
+
     // Stall PC when a data hazard is present
     assign pc_en_o =
-        !(data_hazard && !control_hazard) && !fetch_wait;
+        !mem_wait && !(data_hazard && !control_hazard) && !fetch_wait;
 
-    // Hold IF/ID during a data hazard
+    // Hold IF/ID during a data hazard or memory wait.
     assign if_id_stall_o =
-        data_hazard && !control_hazard;
+        mem_wait || (data_hazard && !control_hazard);
 
-    // Flush IF/ID after a taken branch or jump
+    // Flush IF/ID after a taken branch or jump as long as memory is not waiting
     assign if_id_flush_o =
-        control_hazard;
+        !mem_wait && control_hazard;
 
-    // Bubble at IF/ID when waiting for fetch and no data hazard
-    assign if_id_bubble_o = fetch_wait && !data_hazard;
+    // Bubble at IF/ID when waiting for fetch and no data hazard and no memory wait
+    assign if_id_bubble_o = !mem_wait && fetch_wait && !data_hazard;
 
     // Insert a bubble into ID/EX for a data hazard
     // or flush it for a taken branch/jump
     assign id_ex_flush_o =
+        !mem_wait   &&
         data_hazard ||
         control_hazard;
 
     // EX/MEM is not flushed by Stage 2 hazard logic
     assign ex_mem_flush_o =
         1'b0;
+    
+    assign id_ex_stall_o = mem_wait;    // while the memory is waiting, hold ID/EX
+    assign ex_mem_stall_o = mem_wait;   // while memory waits, hold EX/MEM
+    assign mem_wb_flush_o = mem_wait;   // while memory waits, flush MEM/WB
 
 endmodule
