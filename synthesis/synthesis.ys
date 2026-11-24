@@ -17,6 +17,7 @@ read_slang -DSYNTHESIS -Icode \
     code/control.sv \
     code/register_file.sv \
     code/stall_flush_logic.sv \
+    code/store_buffer.sv \
     code/writeback.sv \
     code/id_ex_reg.sv \
     code/if_id_reg.sv \

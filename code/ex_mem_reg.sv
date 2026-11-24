@@ -1,129 +1,104 @@
 /*
  * Module: ex_mem_reg
  *
- * Description: Pipeline register between the Execute (EX) and
- *              Memory Access (MEM) stages. Latches ALU result,
- *              store data, instruction metadata, and control signals.
- *
- * Features:
- *   - Asynchronous reset: clears all fields to zero / safe defaults
- *   - Synchronous flush:  inserts bubble (zeroes control signals)
+ * Description: X/M pipeline register (lecture 7), between EX and MEM. Holds
+ *              the ALU result (the data address for a load or store), the
+ *              store data, and the fields and controls MEM and WB need.
+ *   - Asynchronous reset: loads a bubble (every field zero).
+ *   - Flush: loads a bubble. Branches resolve in EX, so nothing in X/M is
+ *     ever on a wrong path and the core keeps this input low.
+ *   - Stall: keeps its value while MEM waits for memory.
+ *   Flush wins over stall.
  *
  * Inputs:
- *   1) clk, rst, flush_i             - Clock, reset, flush control
- *   2) pc_i                          - Program counter (for WB_PC4)
- *   3) alu_res_i                     - ALU result (data addr or computation)
- *   4) rs2_data_i                    - Store data from rs2
- *   5) rd_i, funct3_i               - Destination register and funct3
- *   6) imm_i                         - Immediate value (for WB_IMM / LUI)
- *   7) regwren_i .. wbsel_i          - Control signals
+ *   1) clk, rst, flush_i, stall_i      - Clock, reset and pipeline controls
+ *   2) pc_i                            - PC (for WB_PC4)
+ *   3) alu_res_i                       - ALU result: data address or computed value
+ *   4) rs2_data_i                      - Store data from rs2
+ *   5) imm_i                           - Immediate (for WB_IMM, LUI)
+ *   6) rd_i, funct3_i                  - Destination register and access size
+ *   7) regwren_i .. wbsel_i            - Control signals
  *
  * Outputs:
- *   Corresponding latched values with _o suffix for the MEM stage.
+ *   The same values with an _o suffix, to MEM.
  */
 
 `include "constants.svh"
 
 module ex_mem_reg #(
-    parameter int AWIDTH = 32,
-    parameter int DWIDTH = 32
+    parameter int AWIDTH = 32,   // address width
+    parameter int DWIDTH = 32    // data width
 )(
-    input  logic              clk,
-    input  logic              rst,
-    input  logic              flush_i,
-    input  logic              stall_i,
-    // Data inputs from EX stage
-    input  logic [AWIDTH-1:0] pc_i,
-    input  logic [DWIDTH-1:0] alu_res_i,
-    input  logic [DWIDTH-1:0] rs2_data_i,
-    input  logic [DWIDTH-1:0] imm_i,
-    // Instruction metadata inputs from EX stage
-    input  logic [4:0]        rd_i,
-    input  logic [2:0]        funct3_i,
-    // Control signal inputs from EX stage
-    input  logic              regwren_i,
-    input  logic              memren_i,
-    input  logic              memwren_i,
-    input  logic [1:0]        wbsel_i,
-    // Data outputs to MEM stage
-    output logic [AWIDTH-1:0] pc_o,
-    output logic [DWIDTH-1:0] alu_res_o,
-    output logic [DWIDTH-1:0] rs2_data_o,
-    output logic [DWIDTH-1:0] imm_o,
-    // Instruction metadata outputs to MEM stage
-    output logic [4:0]        rd_o,
-    output logic [2:0]        funct3_o,
-    // Control signal outputs to MEM stage
-    output logic              regwren_o,
-    output logic              memren_o,
-    output logic              memwren_o,
-    output logic [1:0]        wbsel_o
+    input  logic                 clk,          // clock
+    input  logic                 rst,          // asynchronous active-high reset
+    input  logic                 flush_i,      // 1 = load a bubble
+    input  logic                 stall_i,      // 1 = keep the current values
+    // Data from EX
+    input  logic [AWIDTH-1:0]    pc_i,         // PC of the instruction
+    input  logic [DWIDTH-1:0]    alu_res_i,    // ALU result or data address
+    input  logic [DWIDTH-1:0]    rs2_data_i,   // store data
+    input  logic [DWIDTH-1:0]    imm_i,        // immediate
+    // Instruction fields from EX
+    input  logic [REG_IDX_W-1:0] rd_i,         // destination register
+    input  logic [FUNCT3_W-1:0]  funct3_i,     // access size and sign
+    // Control signals from EX
+    input  logic                 regwren_i,    // RegWEn: write rd in WB
+    input  logic                 memren_i,     // the instruction is a load
+    input  logic                 memwren_i,    // the instruction is a store
+    input  logic [WBSEL_W-1:0]   wbsel_i,      // WBSel: write-back source
+    // To MEM
+    output logic [AWIDTH-1:0]    pc_o,         // PC of the instruction
+    output logic [DWIDTH-1:0]    alu_res_o,    // ALU result or data address
+    output logic [DWIDTH-1:0]    rs2_data_o,   // store data
+    output logic [DWIDTH-1:0]    imm_o,        // immediate
+    output logic [REG_IDX_W-1:0] rd_o,         // destination register
+    output logic [FUNCT3_W-1:0]  funct3_o,     // access size and sign
+    output logic                 regwren_o,    // RegWEn
+    output logic                 memren_o,     // load
+    output logic                 memwren_o,    // store
+    output logic [WBSEL_W-1:0]   wbsel_o       // WBSel
 );
 
-    // Latch ALU result and store data
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
-            alu_res_o  <= '0;
-            rs2_data_o <= '0;
-        end else if (flush_i) begin
-            alu_res_o  <= '0;
-            rs2_data_o <= '0;
-        end else if (!stall_i) begin
-            alu_res_o  <= alu_res_i;
-            rs2_data_o <= rs2_data_i;
-        end
+    // Contents of the X/M register.
+    typedef struct packed {
+        logic [AWIDTH-1:0]    pc;         // PC of the instruction
+        logic [DWIDTH-1:0]    alu_res;    // ALU result or data address
+        logic [DWIDTH-1:0]    rs2_data;   // store data
+        logic [DWIDTH-1:0]    imm;        // immediate
+        logic [REG_IDX_W-1:0] rd;         // destination register
+        logic [FUNCT3_W-1:0]  funct3;     // access size and sign
+        logic                 regwren;    // RegWEn
+        logic                 memren;     // load
+        logic                 memwren;    // store
+        logic [WBSEL_W-1:0]   wbsel;      // WBSel
+    } x_m_t;
+
+    // Bubble: every field zero, so nothing is loaded, stored or written.
+    localparam x_m_t X_M_BUBBLE = '0;
+
+    x_m_t x_m_q;   // register contents
+    x_m_t x_m_d;   // values arriving from EX
+
+    assign x_m_d = '{pc: pc_i, alu_res: alu_res_i, rs2_data: rs2_data_i, imm: imm_i,
+                     rd: rd_i, funct3: funct3_i, regwren: regwren_i,
+                     memren: memren_i, memwren: memwren_i, wbsel: wbsel_i};
+
+    // X/M register: reset or flush load a bubble, stall holds, otherwise load EX.
+    always_ff @(posedge clk or posedge rst) begin : x_m_register
+        if (rst)           x_m_q <= X_M_BUBBLE;
+        else if (flush_i)  x_m_q <= X_M_BUBBLE;
+        else if (!stall_i) x_m_q <= x_m_d;
     end
 
-    // Latch program counter and immediate value
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
-            pc_o  <= '0;
-            imm_o <= '0;
-        end else if (flush_i) begin
-            pc_o  <= '0;
-            imm_o <= '0;
-        end else if (!stall_i) begin
-            pc_o  <= pc_i;
-            imm_o <= imm_i;
-        end
-    end
-
-    // Latch destination register and funct3
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
-            rd_o     <= '0;
-            funct3_o <= '0;
-        end else if (flush_i) begin
-            rd_o     <= '0;
-            funct3_o <= '0;
-        end else if (!stall_i) begin
-            rd_o     <= rd_i;
-            funct3_o <= funct3_i;
-        end
-    end
-
-    // Latch memory control signals
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
-            regwren_o <= '0;
-            memren_o  <= '0;
-            memwren_o <= '0;
-        end else if (flush_i) begin
-            regwren_o <= '0;
-            memren_o  <= '0;
-            memwren_o <= '0;
-        end else if (!stall_i) begin
-            regwren_o <= regwren_i;
-            memren_o  <= memren_i;
-            memwren_o <= memwren_i;
-        end
-    end
-
-    // Latch writeback source select
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst)            wbsel_o <= '0;
-        else if (flush_i)   wbsel_o <= '0;
-        else if (!stall_i)  wbsel_o <= wbsel_i;
-    end
+    assign pc_o       = x_m_q.pc;
+    assign alu_res_o  = x_m_q.alu_res;
+    assign rs2_data_o = x_m_q.rs2_data;
+    assign imm_o      = x_m_q.imm;
+    assign rd_o       = x_m_q.rd;
+    assign funct3_o   = x_m_q.funct3;
+    assign regwren_o  = x_m_q.regwren;
+    assign memren_o   = x_m_q.memren;
+    assign memwren_o  = x_m_q.memwren;
+    assign wbsel_o    = x_m_q.wbsel;
 
 endmodule : ex_mem_reg

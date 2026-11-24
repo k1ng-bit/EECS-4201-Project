@@ -1,41 +1,42 @@
 /*
  * Module: writeback
  *
- * Description: Write-back control stage implementation
+ * Description: WB stage. Selects the value written to register rd with the
+ *              WBSel control signal (lecture 6):
+ *                WB_ALU - ALU result (arithmetic, logic, shifts, compares)
+ *                WB_MEM - data loaded from memory (loads)
+ *                WB_PC4 - return address PC + 4 (JAL, JALR)
+ *                WB_IMM - the immediate (LUI)
  *
  * Inputs:
- * 1) PC pc_i
- * 2) result from alu alu_res_i
- * 3) data from memory memory_data_i
- * 4) data to select for write-back wbsel_i
- * 5) branch taken signal brtaken_i
+ *   1) pc_i             - PC of the instruction in WB
+ *   2) alu_res_i        - ALU result
+ *   3) memory_data_i    - Data loaded from memory
+ *   4) wbsel_i          - WBSel: which value to write back
+ *   5) imm_i            - Immediate value
  *
  * Outputs:
- * 1) DWIDTH wide write back data write_data_o
+ *   1) writeback_data_o - Value written to register rd
  */
+
 `include "constants.svh"
 
- module writeback #(
-     parameter int DWIDTH=32,
-     parameter int AWIDTH=32
- )(
-     input logic [AWIDTH-1:0] pc_i,
-     input logic [DWIDTH-1:0] alu_res_i,
-     input logic [DWIDTH-1:0] memory_data_i,
-     input logic [1:0] wbsel_i,
-     input logic [DWIDTH-1:0] imm_i,
-     output logic [DWIDTH-1:0] writeback_data_o
- );
-    /* Logic hole 7 (LH7): Determine the data to write-back to register file based on
-                           wbsel control signal
-    */
-    always_comb begin
-        // Muxing the source of writeback data.          
-        /* LH7 complete */
-        writeback_data_o = (wbsel_i == `WB_ALU) ? alu_res_i :           // alu result 
-                           (wbsel_i == `WB_MEM) ? memory_data_i :       // load data for load instructions
-                           (wbsel_i == `WB_PC4) ? pc_i + 32'd4  :       // return addresses
-                           imm_i;                                       // if wbsel_i == `WB_IMM
-    end
+module writeback #(
+    parameter int DWIDTH = 32,   // data width
+    parameter int AWIDTH = 32    // address width
+)(
+    input  logic [AWIDTH-1:0]  pc_i,              // PC of the instruction in WB
+    input  logic [DWIDTH-1:0]  alu_res_i,         // ALU result
+    input  logic [DWIDTH-1:0]  memory_data_i,     // data loaded from memory
+    input  logic [WBSEL_W-1:0] wbsel_i,           // WBSel control
+    input  logic [DWIDTH-1:0]  imm_i,             // immediate value
+    output logic [DWIDTH-1:0]  writeback_data_o   // value written to rd
+);
+
+    // WBSel mux (lecture 6). The remaining code, WB_IMM, selects the immediate.
+    assign writeback_data_o = (wbsel_i == `WB_ALU) ? alu_res_i
+                            : (wbsel_i == `WB_MEM) ? memory_data_i
+                            : (wbsel_i == `WB_PC4) ? pc_i + INSN_BYTES
+                            :                        imm_i;
 
 endmodule : writeback

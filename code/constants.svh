@@ -11,7 +11,38 @@ parameter logic [31:0] ZERO = 32'd0;
 
 // Memory latency in clock cycle. Set to 50 clock cycles as per prof feedback
 // for 1 - answer arrives in next clock edge, for 50 - answer takes 50 clock ticks
-parameter int MEM_LATENCY = 1;           
+parameter int MEM_LATENCY = 1;
+
+// Separate fetch and data latencies (Stage 4 plan, decision 7). Both default to
+// MEM_LATENCY; main_memory switches its two waiters over to these names.
+parameter int FETCH_LATENCY = MEM_LATENCY;   // cycles for one instruction fetch
+parameter int DATA_LATENCY  = MEM_LATENCY;   // cycles for one load read or one store write
+
+// Memory map
+parameter logic [31:0] MEM_BASE_ADDR     = 32'h0100_0000;  // address of the first byte of memory
+parameter logic [31:0] STACK_TOP_ADDR    = 32'h0110_0000;  // sp reset value: base + 1 MiB (MEM_DEPTH)
+parameter logic [31:0] INSN_OUT_OF_RANGE = 32'hDEAD_BEEF;  // word returned for a fetch outside memory
+
+// Instruction stream
+parameter logic [31:0] INSN_BYTES       = 32'd4;           // PC step: every RV32I instruction is 4 bytes
+parameter logic [31:0] JALR_TARGET_MASK = 32'hFFFF_FFFE;   // JALR clears bit 0 of its target
+
+// Register file
+parameter int         NUM_REGS  = 32;                  // x0-x31
+parameter int         REG_IDX_W = $clog2(NUM_REGS);    // width of a register index (rs1, rs2, rd)
+parameter logic [REG_IDX_W-1:0] REG_X0 = REG_IDX_W'(0);   // x0 always reads zero and is never written
+parameter logic [REG_IDX_W-1:0] REG_SP = REG_IDX_W'(2);   // x2 is the stack pointer (sp)
+
+// Instruction field and control-signal widths
+parameter int OPCODE_W = 7;   // opcode field, insn[6:0]
+parameter int FUNCT3_W = 3;   // funct3 field, insn[14:12]
+parameter int FUNCT7_W = 7;   // funct7 field, insn[31:25]
+parameter int ALUSEL_W = 4;   // ALUSel control (lecture 6), see the ALU_* codes
+parameter int WBSEL_W  = 2;   // WBSel control (lecture 6), see the WB_* codes
+
+// Store buffer (SB, lec13 slide 65): number of entries. Must be a power of two of
+// at least 2 so the head and tail pointers wrap on their own.
+parameter int SB_DEPTH = 8;
 
 /*
  * Define constants as required...
@@ -45,6 +76,7 @@ parameter int MEM_LATENCY = 1;
 `define J_TYPE       7'b1101111
 `define U_TYPE_LUI   7'b0110111
 `define U_TYPE_AUIPC 7'b0010111
+`define MISC_MEM     7'b0001111   // FENCE (and FENCE.I in Zifencei)
 
 // Reuseable instruction constants
 `define OPCODE insn_i[6:0]
@@ -72,6 +104,9 @@ parameter int MEM_LATENCY = 1;
  `define F3_SB 3'h0
  `define F3_SH 3'h1
  `define F3_SW 3'h2
+
+ // funct3 constant for the MISC-MEM data fence
+ `define F3_FENCE 3'h0
 
  // funct3 constants for B-type instructions
  `define F3_BEQ 3'h0

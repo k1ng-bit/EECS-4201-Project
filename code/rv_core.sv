@@ -1,12 +1,18 @@
 /*
  * Module: rv_core
  *
- * Description: Top-level 5-stage in-order pipelined RISC-V core (RV32I).
- *              Instantiates all pipeline stages, pipeline registers,
- *              and the stall/flush hazard control unit.
+ * Description: Top level of the 5-stage in-order pipelined RISC-V core (RV32I).
+ *              Instantiates the stages, the four pipeline registers (lecture 7
+ *              names: F/D, D/X, X/M, M/W), the MEM-stage memory unit with its
+ *              store buffer, and the stall/flush hazard unit.
  *
- * Pipeline stages:
- *   IF  → IF/ID reg → ID  → ID/EX reg → EX  → EX/MEM reg → MEM → MEM/WB reg → WB
+ * Pipeline:
+ *   IF -> F/D -> ID -> D/X -> EX -> X/M -> MEM -> M/W -> WB
+ *
+ * Signal names start with the pipeline register or stage they belong to:
+ *   f_  IF stage      f_d_  F/D register    d_  ID stage    c_  control
+ *   r_  register file d_x_  D/X register    e_  EX stage    x_m_  X/M register
+ *   m_  MEM stage     m_w_  M/W register    wb_ WB stage
  *
  * Inputs:
  *   1) clk   - Clock signal
@@ -16,49 +22,44 @@
 `include "constants.svh"
 
 module rv_core #(
-    parameter int AWIDTH = 32,
-    parameter int DWIDTH = 32
+    parameter int AWIDTH = 32,   // address width
+    parameter int DWIDTH = 32    // data width
 )(
-    input logic clk,
-    input logic reset
+    input logic clk,     // clock
+    input logic reset    // asynchronous active-high reset
 );
 
-    
-    //  PIPELINE CONTROL SIGNALS (from stall_flush_logic)
-    
-    logic pc_en;         // 1 = PC moves foward, 0 = PC frozen
-    logic f_d_stall;     // hold the F/D register contents
-    logic f_d_flush;     // flush F/D register with NOP bubble
-    logic f_d_bubble;    // bubble on F/D
-    logic d_x_flush;     // flush D/X to bubble
-    logic d_x_stall;
-    logic x_m_stall;
-    logic x_m_flush;     // flush X/MEM to bubble, always 0 as branch always resolved in EX
-    logic m_w_flush;    
-    // Testbench probes for top_tb / rv_official_tb
-    logic              stall;
-    logic              flush;
-    
-    // stall if decode is on hold due to data hazard or gets bubble because fetch is still waiting
+    //---------- Pipeline control (from stall_flush_logic) ----------//
+    logic pc_en;         // PC write enable: 1 = PC moves forward, 0 = PC frozen
+    logic f_d_stall;     // hold the F/D register (lecture 7, "disable F/D pipeline reg")
+    logic f_d_flush;     // flush F/D after a taken branch or jump
+    logic f_d_bubble;    // put a bubble in F/D while the fetch is still waiting
+    logic d_x_flush;     // put a bubble in D/X (lecture 7, "insert NOPs")
+    logic d_x_stall;     // hold D/X while MEM waits for memory
+    logic x_m_stall;     // hold X/M while MEM waits for memory
+    logic x_m_flush;     // flush X/M: always 0, branches resolve in EX
+    logic m_w_flush;     // bubble into M/W while MEM waits for memory
+
+    // Probes read by top_tb and rv_official_tb through hierarchical references.
+    logic stall;         // decode is held by a hazard or gets a bubble from a waiting fetch
+    logic flush;         // F/D is flushed after a taken branch or jump
+
     assign stall = f_d_stall || f_d_bubble;
     assign flush = f_d_flush;
 
-    
-    // Fetch STAGE — Instruction Fetch 
-    // Fetch stage signals
-    logic [AWIDTH-1:0] f_pc;       // Current program counter
-    logic [DWIDTH-1:0] f_insn;     // Fetched instruction from memory
-    logic f_insn_ready;            // Instruction ready to be fetched , 1 = next instruction ready for f_pc
+    //---------- IF stage: instruction fetch ----------//
+    logic [AWIDTH-1:0] f_pc;          // current program counter
+    logic [DWIDTH-1:0] f_insn;        // fetched instruction
+    logic              f_insn_ready;  // 1 = the instruction at f_pc has arrived from memory
 
-    // Branch/jump resolution feedback from EX stage
-    logic              jump_branch;         // Branch taken or jump in EX
-    logic [DWIDTH-1:0] e_res;               // alu result or branch/jump target from ALU
+    // Branch and jump resolution, fed back from EX
+    logic              jump_branch;   // taken branch or jump in EX
+    logic [DWIDTH-1:0] e_res;         // ALU result, or the branch or jump target
 
-    // Fetch module: manages the PC register
     fetch #(
         .AWIDTH(AWIDTH),
         .DWIDTH(DWIDTH),
-        .BASEADDR(32'h01000000)
+        .BASE_ADDR(MEM_BASE_ADDR)
     ) fetch1 (
         .clk(clk),
         .rst(reset),
@@ -68,16 +69,14 @@ module rv_core #(
         .pc_o(f_pc)
     );
 
-    
-    //  F/D PIPELINE REGISTER
-     
-    logic [AWIDTH-1:0] f_d_pc;       // PC in decode stage
-    logic [DWIDTH-1:0] f_d_insn;     // Instruction in decode stage
+    //---------- F/D pipeline register ----------//
+    logic [AWIDTH-1:0] f_d_pc;        // PC of the instruction in ID
+    logic [DWIDTH-1:0] f_d_insn;      // instruction in ID
 
     if_id_reg #(
         .AWIDTH(AWIDTH),
         .DWIDTH(DWIDTH)
-    ) if_id (
+    ) f_d_reg (
         .clk(clk),
         .rst(reset),
         .stall_i(f_d_stall),
@@ -88,15 +87,14 @@ module rv_core #(
         .insn_o(f_d_insn)
     );
 
-    
-    //  ID STAGE — Instruction Decode, Immediate Gen, Control, Reg Read
-    // Decoded instruction fields
-    logic [6:0] d_opcode;
-    logic [4:0] d_rd, d_rs1, d_rs2;
-    logic [6:0] d_funct7;
-    logic [2:0] d_funct3;
+    //---------- ID stage: decode, immediate, control, register read ----------//
+    logic [OPCODE_W-1:0]  d_opcode;   // opcode field
+    logic [REG_IDX_W-1:0] d_rd;       // destination register
+    logic [REG_IDX_W-1:0] d_rs1;      // source register 1
+    logic [REG_IDX_W-1:0] d_rs2;      // source register 2
+    logic [FUNCT7_W-1:0]  d_funct7;   // funct7 field
+    logic [FUNCT3_W-1:0]  d_funct3;   // funct3 field
 
-    // Decode module: extract instruction fields
     decode #(
         .AWIDTH(AWIDTH),
         .DWIDTH(DWIDTH)
@@ -105,20 +103,19 @@ module rv_core #(
         .rst(reset),
         .insn_i(f_d_insn),
         .pc_i(f_d_pc),
-        .pc_o(),             // Unused: pipeline registers handle propagation
-        .insn_o(),           // Unused: pipeline registers handle propagation
+        .pc_o(),             // unused: the pipeline registers carry the PC
+        .insn_o(),           // unused: the pipeline registers carry the instruction
         .opcode_o(d_opcode),
         .rd_o(d_rd),
         .rs1_o(d_rs1),
         .rs2_o(d_rs2),
         .funct7_o(d_funct7),
         .funct3_o(d_funct3),
-        .shamt_o(),          // Unused: shamt derived from immediate
-        .imm_o()             // Unused: immediate comes from igen
+        .shamt_o(),          // unused: the shift amount comes from the immediate
+        .imm_o()             // unused: the immediate comes from igen
     );
 
-    // Immediate generator
-    logic [DWIDTH-1:0] d_imm;
+    logic [DWIDTH-1:0] d_imm;         // immediate from igen
 
     igen #(
         .DWIDTH(DWIDTH)
@@ -128,12 +125,16 @@ module rv_core #(
         .imm_o(d_imm)
     );
 
-    // Control path: generate control signals from decoded instruction
-    logic       c_pcsel, c_immsel, c_regwren;
-    logic       c_rs1sel, c_rs2sel;
-    logic       c_memren, c_memwren;
-    logic [1:0] c_wbsel;
-    logic [3:0] c_alusel;
+    // Control signals (lecture 6 names in brackets)
+    logic                c_pcsel;     // [PCSel] the instruction is a jump
+    logic                c_immsel;    // [ImmSel] the instruction has an immediate
+    logic                c_regwren;   // [RegWEn] write rd in WB
+    logic                c_rs1sel;    // the instruction reads rs1 (used by the hazard unit)
+    logic                c_rs2sel;    // the instruction reads rs2 (used by the hazard unit)
+    logic                c_memren;    // the instruction is a load
+    logic                c_memwren;   // the instruction is a store ([MemRW] for stores)
+    logic [WBSEL_W-1:0]  c_wbsel;     // [WBSel] write-back source
+    logic [ALUSEL_W-1:0] c_alusel;    // [ALUSel] ALU operation
 
     control #(
         .DWIDTH(DWIDTH)
@@ -153,12 +154,12 @@ module rv_core #(
         .alusel_o(c_alusel)
     );
 
-    // Register file: read in ID, write in WB
-    logic [DWIDTH-1:0] r_rs1data, r_rs2data;
-    // WB stage write signals (declared here, driven in WB section below)
-    logic [4:0]        m_w_rd;
-    logic [DWIDTH-1:0] wb_data;     // value that is written into reg rd - chosen by WB mux
-    logic              m_w_regwren; 
+    // Register file: read in ID, written in WB
+    logic [DWIDTH-1:0]    r_rs1data;    // value of rs1
+    logic [DWIDTH-1:0]    r_rs2data;    // value of rs2
+    logic [REG_IDX_W-1:0] m_w_rd;       // destination register of the instruction in WB
+    logic [DWIDTH-1:0]    wb_data;      // value written to rd, chosen by the WBSel mux
+    logic                 m_w_regwren;  // [RegWEn] of the instruction in WB
 
     register_file #(
         .DWIDTH(DWIDTH)
@@ -174,22 +175,28 @@ module rv_core #(
         .rs2data_o(r_rs2data)
     );
 
-    
-    //  D/X PIPELINE REGISTER
-    
-    logic [AWIDTH-1:0] d_x_pc;                                  // pc in the pipeline register
-    logic [DWIDTH-1:0] d_x_rs1data, d_x_rs2data, d_x_imm;       // register values rs1 and rs2 and imm 
-    logic [4:0]        d_x_rd, d_x_rs1, d_x_rs2;                // register numbers
-    logic [2:0]        d_x_funct3;                              
-    logic [6:0]        d_x_funct7, d_x_opcode;
-    logic              d_x_pcsel, d_x_regwren, d_x_memren, d_x_memwren;     // controls for the pipeline register
-    logic [1:0]        d_x_wbsel;
-    logic [3:0]        d_x_alusel;
+    //---------- D/X pipeline register ----------//
+    logic [AWIDTH-1:0]    d_x_pc;         // PC of the instruction in EX
+    logic [DWIDTH-1:0]    d_x_rs1data;    // value of rs1
+    logic [DWIDTH-1:0]    d_x_rs2data;    // value of rs2
+    logic [DWIDTH-1:0]    d_x_imm;        // immediate
+    logic [REG_IDX_W-1:0] d_x_rd;         // destination register
+    logic [REG_IDX_W-1:0] d_x_rs1;        // source register 1 (kept for a future bypass unit)
+    logic [REG_IDX_W-1:0] d_x_rs2;        // source register 2 (kept for a future bypass unit)
+    logic [FUNCT3_W-1:0]  d_x_funct3;     // funct3 field
+    logic [FUNCT7_W-1:0]  d_x_funct7;     // funct7 field
+    logic [OPCODE_W-1:0]  d_x_opcode;     // opcode field
+    logic                 d_x_pcsel;      // [PCSel] the instruction is a jump
+    logic                 d_x_regwren;    // [RegWEn]
+    logic                 d_x_memren;     // load
+    logic                 d_x_memwren;    // store
+    logic [WBSEL_W-1:0]   d_x_wbsel;      // [WBSel]
+    logic [ALUSEL_W-1:0]  d_x_alusel;     // [ALUSel]
 
     id_ex_reg #(
         .AWIDTH(AWIDTH),
         .DWIDTH(DWIDTH)
-    ) id_ex (
+    ) d_x_reg (
         .clk(clk),
         .rst(reset),
         .flush_i(d_x_flush),
@@ -199,7 +206,7 @@ module rv_core #(
         .rs1_data_i(r_rs1data),
         .rs2_data_i(r_rs2data),
         .imm_i(d_imm),
-        // Metadata from ID
+        // Instruction fields from ID
         .rd_i(d_rd),
         .rs1_i(d_rs1),
         .rs2_i(d_rs2),
@@ -213,7 +220,7 @@ module rv_core #(
         .memwren_i(c_memwren),
         .wbsel_i(c_wbsel),
         .alusel_i(c_alusel),
-        // Outputs to EX
+        // To EX
         .pc_o(d_x_pc),
         .rs1_data_o(d_x_rs1data),
         .rs2_data_o(d_x_rs2data),
@@ -232,28 +239,27 @@ module rv_core #(
         .alusel_o(d_x_alusel)
     );
 
-    
-    //  EX STAGE — ALU Execution and Branch Resolution
-    // ALU input muxing
-    logic [DWIDTH-1:0] alu_A, alu_b;        // alu input A and B
-    logic              e_brtaken;           // 1 if branch condition is true, else 0
+    //---------- EX stage: ALU and branch resolution ----------//
+    logic [DWIDTH-1:0] alu_a;         // ALU operand A
+    logic [DWIDTH-1:0] alu_b;         // ALU operand B
+    logic              e_brtaken;     // 1 = the branch condition is true
 
-    // ALU operand A: always rs1 data
-    assign alu_A = d_x_rs1data;
+    // [ASel] Operand A: always the value of rs1.
+    assign alu_a = d_x_rs1data;
 
-    // ALU operand B: immediate for I/L/JALR/S types, otherwise rs2 data
+    // [BSel] Operand B: the immediate for I-type, load, JALR and store
+    // instructions, otherwise the value of rs2.
     assign alu_b = ((d_x_opcode == `I_TYPE)      ||
-                       (d_x_opcode == `I_TYPE_L)    ||
-                       (d_x_opcode == `I_TYPE_JALR) ||
-                       (d_x_opcode == `S_TYPE)) ? d_x_imm : d_x_rs2data;
+                    (d_x_opcode == `I_TYPE_L)    ||
+                    (d_x_opcode == `I_TYPE_JALR) ||
+                    (d_x_opcode == `S_TYPE)) ? d_x_imm : d_x_rs2data;
 
-    // ALU instance
     alu #(
         .DWIDTH(DWIDTH),
         .AWIDTH(AWIDTH)
     ) e_alu1 (
         .pc_i(d_x_pc),
-        .rs1_i(alu_A),
+        .rs1_i(alu_a),
         .rs2_i(alu_b),
         .funct3_i(d_x_funct3),
         .funct7_i(d_x_funct7),
@@ -264,22 +270,25 @@ module rv_core #(
         .brtaken_o(e_brtaken)
     );
 
-    // Branch/jump resolution: redirect PC on taken branch or jump
+    // Redirect the PC on a jump or a taken branch.
     assign jump_branch = d_x_pcsel || e_brtaken;
 
-    
-    //  EX/MEM PIPELINE REGISTER
-    logic [AWIDTH-1:0] x_m_pc;                                  
-    logic [DWIDTH-1:0] x_m_alu_res, x_m_rs2data, x_m_imm;   // alu_res for load store address or alu results. rs2data for store write
-    logic [4:0]        x_m_rd;                              
-    logic [2:0]        x_m_funct3;
-    logic              x_m_regwren, x_m_memren, x_m_memwren;  // contorl signals
-    logic [1:0]        x_m_wbsel;
+    //---------- X/M pipeline register ----------//
+    logic [AWIDTH-1:0]    x_m_pc;         // PC of the instruction in MEM
+    logic [DWIDTH-1:0]    x_m_alu_res;    // ALU result: the data address of a load or store
+    logic [DWIDTH-1:0]    x_m_rs2data;    // store data
+    logic [DWIDTH-1:0]    x_m_imm;        // immediate
+    logic [REG_IDX_W-1:0] x_m_rd;         // destination register
+    logic [FUNCT3_W-1:0]  x_m_funct3;     // access size and sign
+    logic                 x_m_regwren;    // [RegWEn]
+    logic                 x_m_memren;     // load
+    logic                 x_m_memwren;    // store
+    logic [WBSEL_W-1:0]   x_m_wbsel;      // [WBSel]
 
     ex_mem_reg #(
         .AWIDTH(AWIDTH),
         .DWIDTH(DWIDTH)
-    ) ex_mem (
+    ) x_m_reg (
         .clk(clk),
         .rst(reset),
         .flush_i(x_m_flush),
@@ -289,7 +298,7 @@ module rv_core #(
         .alu_res_i(e_res),
         .rs2_data_i(d_x_rs2data),
         .imm_i(d_x_imm),
-        // Metadata from EX
+        // Instruction fields from EX
         .rd_i(d_x_rd),
         .funct3_i(d_x_funct3),
         // Control from EX
@@ -297,7 +306,7 @@ module rv_core #(
         .memren_i(d_x_memren),
         .memwren_i(d_x_memwren),
         .wbsel_i(d_x_wbsel),
-        // Outputs to MEM
+        // To MEM
         .pc_o(x_m_pc),
         .alu_res_o(x_m_alu_res),
         .rs2_data_o(x_m_rs2data),
@@ -310,45 +319,45 @@ module rv_core #(
         .wbsel_o(x_m_wbsel)
     );
 
-
-    //  MEM STAGE — Data Memory Access
-    
-    logic m_data_ready;            // Data ready signal, 1 = memory has finished load / store in MEM stage.
-    logic [DWIDTH-1:0] m_data_o;   // Data loaded from memory
+    //---------- MEM stage: store buffer and data memory ----------//
+    logic              m_data_ready;  // 1 = the load or store in MEM is finished
+    logic [DWIDTH-1:0] m_data_o;      // loaded data
+    logic              m_sb_empty;    // 1 = no store waiting in the store buffer
 
     memory #(
         .AWIDTH(AWIDTH),
         .DWIDTH(DWIDTH),
         .OWIDTH(2),
-        .BASE_ADDR(32'h01000000)
+        .BASE_ADDR(MEM_BASE_ADDR)
     ) memory1 (
         .clk(clk),
         .rst(reset),
-        .pc_i(f_pc),                // IF stage: instruction address
-        .addr_i(x_m_alu_res),       // MEM stage: data address
-        .data_i(x_m_rs2data),       // MEM stage: store data
-        .funct3_i(x_m_funct3),      // MEM stage: byte/half/word select
-        .memren_i(x_m_memren),      // MEM stage: read enable
-        .memwren_i(x_m_memwren),    // MEM stage: write enable
-        .insnen_i(1'b1),            // IF stage: always fetch instructions
-        .insn_taken_i(pc_en),       // IF stage
-        .insn_ready_o(f_insn_ready),// IF stage
-        .insn_o(f_insn),            // IF stage: fetched instruction
-        .data_ready_o(m_data_ready),// MEM stage: data ready
-        .data_o(m_data_o)           // MEM stage: loaded data
+        .pc_i(f_pc),                  // IF: instruction address
+        .addr_i(x_m_alu_res),         // MEM: data address
+        .data_i(x_m_rs2data),         // MEM: store data
+        .funct3_i(x_m_funct3),        // MEM: byte, halfword or word
+        .memren_i(x_m_memren),        // MEM: load
+        .memwren_i(x_m_memwren),      // MEM: store
+        .insnen_i(1'b1),              // IF: always fetch instructions
+        .insn_taken_i(pc_en),         // IF: the PC moved, start the next fetch
+        .insn_ready_o(f_insn_ready),  // IF: fetched instruction ready
+        .insn_o(f_insn),              // IF: fetched instruction
+        .data_ready_o(m_data_ready),  // MEM: load or store finished
+        .data_o(m_data_o),            // MEM: loaded data
+        .sb_empty_o(m_sb_empty)       // MEM: store buffer empty (for FENCE)
     );
 
-    
-    //  MEM/WB PIPELINE REGISTER
-    
-    logic [AWIDTH-1:0] m_w_pc;
-    logic [DWIDTH-1:0] m_w_alu_res, m_w_mem_data, m_w_imm;
-    logic [1:0]        m_w_wbsel;
+    //---------- M/W pipeline register ----------//
+    logic [AWIDTH-1:0] m_w_pc;        // PC of the instruction in WB
+    logic [DWIDTH-1:0] m_w_alu_res;   // ALU result
+    logic [DWIDTH-1:0] m_w_mem_data;  // loaded data
+    logic [DWIDTH-1:0] m_w_imm;       // immediate
+    logic [WBSEL_W-1:0] m_w_wbsel;    // [WBSel]
 
     mem_wb_reg #(
         .AWIDTH(AWIDTH),
         .DWIDTH(DWIDTH)
-    ) mem_wb (
+    ) m_w_reg (
         .clk(clk),
         .rst(reset),
         .flush_i(m_w_flush),
@@ -357,12 +366,12 @@ module rv_core #(
         .alu_res_i(x_m_alu_res),
         .mem_data_i(m_data_o),
         .imm_i(x_m_imm),
-        // Metadata from MEM
+        // Instruction field from MEM
         .rd_i(x_m_rd),
         // Control from MEM
         .regwren_i(x_m_regwren),
         .wbsel_i(x_m_wbsel),
-        // Outputs to WB
+        // To WB
         .pc_o(m_w_pc),
         .alu_res_o(m_w_alu_res),
         .mem_data_o(m_w_mem_data),
@@ -372,9 +381,7 @@ module rv_core #(
         .wbsel_o(m_w_wbsel)
     );
 
-    
-    //  WB STAGE — Writeback to Register File
-    
+    //---------- WB stage: write back to the register file ----------//
     writeback #(
         .DWIDTH(DWIDTH),
         .AWIDTH(AWIDTH)
@@ -387,30 +394,28 @@ module rv_core #(
         .writeback_data_o(wb_data)
     );
 
-    
-    //  HAZARD CONTROL — Stall & Flush Logic
-    
+    //---------- Hazard control: stall and flush logic ----------//
     stall_flush_logic stall_flush (
-        // IF instruction ready signal
+        // IF: instruction ready
         .insn_ready_i(f_insn_ready),
-        // ID stage source registers
+        // ID: source registers
         .id_rs1_i(d_rs1),
         .id_rs2_i(d_rs2),
         .id_rs1_valid_i(c_rs1sel),
         .id_rs2_valid_i(c_rs2sel),
-        // EX stage destination and control
+        // EX: destination and control
         .ex_rd_i(d_x_rd),
         .ex_regwren_i(d_x_regwren),
         .ex_memren_i(d_x_memren),
         .ex_brtaken_i(e_brtaken),
         .ex_is_jump_i(d_x_pcsel),
-        // MEM stage destination and control
+        // MEM: destination, control and completion
         .mem_rd_i(x_m_rd),
         .mem_regwren_i(x_m_regwren),
         .mem_memren_i(x_m_memren),
-        .mem_memwren_i(x_m_memwren), 
+        .mem_memwren_i(x_m_memwren),
         .mem_ready_i(m_data_ready),
-        // Pipeline control outputs
+        // Pipeline controls
         .pc_en_o(pc_en),
         .if_id_stall_o(f_d_stall),
         .if_id_flush_o(f_d_flush),
@@ -422,8 +427,9 @@ module rv_core #(
         .mem_wb_flush_o(m_w_flush)
     );
 
-    // Synthesis keep signal so yosys does not optimize away the design
+    // Keeps the design from being optimized away in synthesis: the core is busy
+    // while it writes a register, accesses memory, or still holds stores in the SB.
     (* keep *) logic busy;
-    assign busy = (m_w_regwren || x_m_memren || x_m_memwren);
+    assign busy = (m_w_regwren || x_m_memren || x_m_memwren || !m_sb_empty);
 
 endmodule : rv_core
