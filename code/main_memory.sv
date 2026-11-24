@@ -99,11 +99,11 @@ module main_memory #(
             f_wait_cnt <= 0;
         else if (insn_taken_i)
             f_wait_cnt <= 0;
-        else if (f_wait_cnt != MEM_LATENCY)
+        else if (f_wait_cnt != FETCH_LATENCY)
             f_wait_cnt <= f_wait_cnt + 1;
     end
 
-    assign insn_ready_o = (f_wait_cnt == MEM_LATENCY);
+    assign insn_ready_o = (f_wait_cnt == FETCH_LATENCY);
 
     //---------- Instruction Load ----------//
     logic [AWIDTH-1:0] program_counter;
@@ -160,7 +160,7 @@ module main_memory #(
             d_wait_cnt <= d_wait_cnt + 1;
     end
 
-    assign data_ready_o = data_req && (d_wait_cnt == MEM_LATENCY);
+    assign data_ready_o = data_req && (d_wait_cnt == DATA_LATENCY);
 
 
     //---------- Memory Data Read ----------//

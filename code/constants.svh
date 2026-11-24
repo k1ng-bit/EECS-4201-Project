@@ -13,6 +13,9 @@ parameter logic [31:0] ZERO = 32'd0;
 // for 1 - answer arrives in next clock edge, for 50 - answer takes 50 clock ticks
 parameter int MEM_LATENCY = 1;           
 
+parameter int FETCH_LATENCY = MEM_LATENCY;
+parameter int DATA_LATENCY  = MEM_LATENCY;
+
 /*
  * Define constants as required...
  */
