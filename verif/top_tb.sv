@@ -115,9 +115,60 @@ module top_tb;
       `define GET_FLUSH (0)
    `endif
 
+   //---------- Stall-cause counters for the store buffer (SB) measurements ----------//
+   // Each counts cycles after reset, except the two marked "events".
+   // Probes use the hazard unit's ports, so they also work on a core without the SB.
+   int store_stalls      = 0; // a store in MEM waits: for memory without the SB, for a free entry with it
+   int store_only_stalls = 0; // a store waits while the next instruction is already fetched
+                              // (the time an SB can save: Amdahl's f)
+   int load_stalls       = 0; // a load in MEM waits for its data
+`ifndef NO_STORE_BUFFER
+   int sb_full_stalls    = 0; // a store waits because every SB entry is in use
+   int sb_partial_stalls = 0; // a load waits on a partial match until the older store is written
+   int sb_port_stalls    = 0; // a load waits because a head write owns the data port
+   int sb_forwards       = 0; // events: a load took its value from the SB
+   int sb_head_writes    = 0; // events: the SB wrote its head store to memory
+   int sb_peak_count     = 0; // most stores held in the SB at once
+`endif
+
+   // Adds this cycle's stall causes to the counters.
+   task automatic count_stall_causes();
+      if (hut.stall_flush.mem_memwren_i && !hut.stall_flush.mem_ready_i) begin
+         store_stalls++;
+         if (hut.stall_flush.insn_ready_i) store_only_stalls++;
+      end
+      if (hut.stall_flush.mem_memren_i && !hut.stall_flush.mem_ready_i) load_stalls++;
+`ifndef NO_STORE_BUFFER
+      if (hut.stall_flush.mem_memwren_i && hut.memory1.sb_full) sb_full_stalls++;
+      if (hut.memory1.sb_partial) sb_partial_stalls++;
+      if (hut.memory1.load_needs_port && !hut.memory1.port_load) sb_port_stalls++;
+      if (hut.memory1.sb_forward) sb_forwards++;
+      if (hut.memory1.head_written) sb_head_writes++;
+      if (int'(hut.memory1.sb.sb_count) > sb_peak_count) sb_peak_count = int'(hut.memory1.sb.sb_count);
+`endif
+   endtask
+
+   // Prints the stall-cause counters (called by print_metrics).
+   task automatic print_stall_causes();
+      $display("Instructions        : %0d", insn_exe);
+      $display("Store stalls        : %0d", store_stalls);
+      $display("Store-only stalls   : %0d", store_only_stalls);
+      $display("Load stalls         : %0d", load_stalls);
+`ifndef NO_STORE_BUFFER
+      $display("SB full stalls      : %0d", sb_full_stalls);
+      $display("SB partial stalls   : %0d", sb_partial_stalls);
+      $display("SB port-busy stalls : %0d", sb_port_stalls);
+      $display("SB forwards         : %0d", sb_forwards);
+      $display("SB head writes      : %0d", sb_head_writes);
+      $display("SB peak count       : %0d", sb_peak_count);
+`endif
+   endtask
+
 initial begin
+`ifndef NO_WAVES  // -DNO_WAVES skips the waveform, for long slow-memory runs
       $dumpfile("top_tb.vcd");
       $dumpvars(0, top_tb);
+`endif
       $system("date");
       wait (!rst);
       forever begin
@@ -133,6 +184,7 @@ initial begin
          if (hut.wb_wb1.pc_i != '0) begin
             insn_exe++;
          end
+         count_stall_causes();
       end
    end
 
@@ -152,6 +204,7 @@ initial begin
       $display("Stalls       : %0d", stalls);
       $display("Squashes     : %0d", squashes);
       $display("Final CPI    : %0.2f", cpi);
+      print_stall_causes();
       $display("===========================================\n");
    endfunction
 
