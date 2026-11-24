@@ -135,6 +135,7 @@ module rv_core #(
     logic                c_memwren;   // the instruction is a store ([MemRW] for stores)
     logic [WBSEL_W-1:0]  c_wbsel;     // [WBSel] write-back source
     logic [ALUSEL_W-1:0] c_alusel;    // [ALUSel] ALU operation
+    logic                c_is_fence;  // the instruction in ID is a FENCE (no-op, will hold for older stores)
 
     control #(
         .DWIDTH(DWIDTH)
@@ -151,7 +152,8 @@ module rv_core #(
         .memren_o(c_memren),
         .memwren_o(c_memwren),
         .wbsel_o(c_wbsel),
-        .alusel_o(c_alusel)
+        .alusel_o(c_alusel),
+        .is_fence_o(c_is_fence)
     );
 
     // Register file: read in ID, written in WB

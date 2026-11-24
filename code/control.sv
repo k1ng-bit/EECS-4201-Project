@@ -21,6 +21,11 @@
  * 7) 1-bit memory read en memren_o
  * 8) 1-bit memory write en memwren_o
  * 9) 2-bit writeback sel wbsel_o
+ * 10) 1-bit FENCE flag is_fence_o (a FENCE decodes as a no-op; the hazard unit
+ *     will use this flag to wait for older stores to reach memory)
+ *
+ * TODO: raise is_fence_o only for FENCE with funct3 = 0 and treat FENCE.I
+ *       (funct3 = 1) as an illegal instruction once the professor answers.
  */
 
 `include "constants.svh"
@@ -43,8 +48,13 @@ module control #(
     output logic memren_o,
     output logic memwren_o,
     output logic [1:0] wbsel_o,
-    output logic [3:0] alusel_o
+    output logic [3:0] alusel_o,
+    output logic is_fence_o
 );
+
+// FENCE: no register write, no memory access, no jump. The default arm of the case
+// below already gives it ALU_NOP, so this flag is the only new decode output.
+assign is_fence_o = (opcode_i == `MISC_MEM) && (funct3_i == `F3_FENCE);
 
 assign memren_o = (opcode_i == `I_TYPE_L);
 assign memwren_o = (opcode_i == `S_TYPE);
